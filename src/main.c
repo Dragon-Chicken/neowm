@@ -1,28 +1,39 @@
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-
 #include "main.h"
 
-
 // helper
-void printll(void) {
-  printf("\nlinked list:\n");
-  Client *c = headc;
-  while (c) {
-    printf("c: %-8lx, n: %-8lx, pr: %-8lx, pa: %-8lx, h: %d, m: %d\n",
-        c->win,
-        (c->next != NULL ? c->next->win : 0L),
-        (c->prev != NULL ? c->prev->win : 0L),
-        (c->parent != NULL ? c->parent->win : 0L),
-        (c == headc ? 1 : 0),
-        c->manage);
-    c = c->next;
+void printpath(int path, int depth) {
+  for (int i = depth; i >= 1; i--) {
+    if (((path >> (i - 1)) & 1UL) == 1) {
+      printf("1");
+    } else {
+      printf("0");
+    }
   }
+}
+
+int printbsptree(Client *c) {
+  if (!c) {
+    printf("client is invalid\n");
+    return 0;
+  }
+
+  printf("win: ");
+  if (c == headc) {
+    printf("id=root    , ");
+  } else {
+    //printf("id=%-8lb, ", c->path);
+    printf("id=");
+    printpath(c->path, c->depth);
+    printf(", ");
+  }
+  printf("win=%-8lx, d=%-4d", c->win, c->depth);
+  /*if (c->a)
+    printf(", a->path=%-8lb, a->win=%-8lx", c->a->path, c->a->win);
+  if (c->a)
+    printf(", b->path=%-8lb, b->win=%-8lx", c->b->path, c->b->win);*/
+  printf("\n");
+
+  return 1;
 }
 
 void printerr(char *errstr) {
@@ -33,13 +44,14 @@ char keysymtostring(XKeyEvent *xkey) {
   return *XKeysymToString(XLookupKeysym(xkey, 0));
 }
 
-int getatomprop(Client *c, Atom prop, Atom *retatom, unsigned long retatomlen) {
+int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype) {
+  // Atom == unsigned long
   int di;
   unsigned long ni;
   unsigned long dl;
   unsigned char *p = NULL;
   Atom da;
-  if (XGetWindowProperty(dpy, c->win, prop, 0L, retatomlen, False, XA_ATOM,
+  if (XGetWindowProperty(dpy, c->win, prop, 0L, retatomlen, False, proptype,
       &da, &di, &ni, &dl, &p) == Success && p) {
     for (unsigned long i = 0; ni == retatomlen && i <= ni; i++) {
       retatom[i] = ((Atom *)p)[i];
@@ -51,26 +63,87 @@ int getatomprop(Client *c, Atom prop, Atom *retatom, unsigned long retatomlen) {
   return 0;
 }
 
-int getcardprop(Client *c, Atom prop, int *strut, unsigned long strutlen) {
-  int di;
-  unsigned long ni;
-  unsigned long dl;
-  unsigned char *p = NULL;
-  Atom da;
-  if (XGetWindowProperty(dpy, c->win, prop, 0L, strutlen, False, XA_CARDINAL,
-      &da, &di, &ni, &dl, &p) == Success && p) {
-    for (unsigned long i = 0; ni == strutlen && i <= ni; i++) {
-      strut[i] = ((long *)p)[i];
-    }
-    XFree(p);
-    return 1;
-  }
-  return 0;
+Client *createclient(void) {
+  Client *c = (Client *)malloc(sizeof(Client));
+  c->win = root;
+  c->a = NULL;
+  c->b = NULL;
+  c->depth = 0;
+  c->x = 0;
+  c->y = 0;
+  c->w = 0;
+  c->h = 0;
+  c->path = 0UL;
+  return c;
 }
 
-bool intersect(int x1, int w1, int x2, int w2) {
-  return (x1<=x2 && (x1+w1>=x2 || x1+w1>=x2+w2)) ||
-         (x2<=x1 && (x2+w2>=x1 || x2+w2>=x1+w1));
+void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
+  if (win) {
+    a->win = b->win;
+    a->x = b->x;
+    a->y = b->y;
+    a->w = b->w;
+    a->h = b->h;
+  }
+  if (path) {
+    a->path = b->path;
+    a->depth = b->depth;
+  }
+  if (ab) {
+    a->a = b->a;
+    a->b = b->b;
+  }
+}
+
+int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **)) {
+  if (depth < 0) {
+    printf("depth < 0\n");
+    return 0;
+  }
+  if (depth <= 0) {
+    printf("running func\n");
+    return func(c, retc);
+  }
+  if (!c) {
+    printf("c is null\n");
+    return 0;
+  }
+
+  if (((path >> (depth - 1)) & 1UL) == 1)
+    return gototree(c->a, retc, path, depth - 1, func);
+  else
+    return gototree(c->b, retc, path, depth - 1, func);
+}
+
+int findclientpath(Client *c, Client **retc) {
+  *retc = c;
+  return 1;
+}
+
+Client *findclient(Client *c, Window win) {
+  Client *retc = NULL;
+  if (c->win == win) {
+    return c;
+  } else {
+    if (c->a)
+      retc = findclient(c->a, win);
+    if (c->b && !retc)
+      retc = findclient(c->b, win);
+  }
+  return retc;
+}
+
+int looptree(Client *c, int (*func)(Client *)) {
+  if (!c)
+    return 0;
+
+  func(c);
+
+  if (c->a)
+    looptree(c->a, func);
+  if (c->b)
+    looptree(c->b, func);
+  return 0;
 }
 
 
@@ -107,11 +180,13 @@ void maprequest(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(maprequest)\n");
 #endif
+
   XMapRequestEvent *mapreq = &ev->xmaprequest;
   XWindowAttributes wa;
   if (!XGetWindowAttributes(dpy, mapreq->window, &wa) || wa.override_redirect) {
     return;
   }
+  XSelectInput(dpy, mapreq->window, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
   manage(mapreq->window, &wa);
 }
 
@@ -119,8 +194,8 @@ void unmapnotify(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(unmapnotify)\n");
 #endif
-  Window unmapwin = ev->xunmap.window;
 
+  Window unmapwin = ev->xunmap.window;
   unmanage(unmapwin);
 }
 
@@ -128,8 +203,8 @@ void destroynotify(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(destroynotify)\n");
 #endif
-  Window destroywin = ev->xdestroywindow.window;
 
+  Window destroywin = ev->xdestroywindow.window;
   unmanage(destroywin);
 }
 
@@ -137,22 +212,22 @@ void enternotify(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(enternotify)\n");
 #endif
+
   if (ev->xcrossing.window == root)
     return;
 
-  Client *c = headc;
-  while (c->next && c->win != ev->xcrossing.window)
-    c = c->next;
-  if (!c->manage)
-    return;
-  focused = c;
-  setfocus(c);
+  Client *c = findclient(headc, ev->xcrossing.window);
+  if (c)
+    setfocus(c);
+  else
+    printf("can't find client in enternotify\n");
 }
 
 void focusin(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(focusin)\n");
 #endif
+
   if (focused && ev->xfocus.window != focused->win) {
     setfocus(focused);
   }
@@ -187,7 +262,7 @@ int sendevent(Client *c, Atom proto) {
 }
 
 void setfocus(Client *c) {
-  if (!c || c->win == root) {
+  if (!c) {
     return;
   }
   XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
@@ -197,196 +272,263 @@ void setfocus(Client *c) {
       XA_WINDOW, 32, PropModeReplace,
       (unsigned char *) &(c->win), 1);
   sendevent(c, wmatom[WMTakeFocus]); // god know what this does
-  
-  updateborders();
+  looptree(headc, updateborders);
+}
+
+int addtotree(Client *c, Client **newc) {
+  if (!c)
+    return 0;
+  if (c->win != root) {
+    c->b = *newc;
+    c->a = createclient();
+    copyclientdata(c->a, c, True, True, False);
+    c->win = root;
+    c->a->depth++;
+    c->b->depth++;
+    c->a->path = (c->a->path << 1) | 1;
+    c->b->path = (c->b->path << 1) & ~(1);
+    if (c == focused)
+      focused = *newc;
+    printf("c->a win:%lx path:%lb\n", c->a->win, c->a->path);
+    printf("c->b win:%lx path:%lb\n", c->b->win, c->b->path);
+  } else {
+    copyclientdata(c, *newc, True, True, False);
+    free(*newc);
+    *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
+  }
+  return 1;
+}
+
+int updateborders(Client *c) {
+  if (!c)
+    return 0;
+
+  XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
+  return 1;
+}
+
+int mapwins(Client *c) {
+  c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
+  c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);
+  c->x = 0 + sxoff + conf.hgaps;
+  c->y = 0 + syoff + conf.vgaps;
+
+  //XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
+
+  if (c->win == root)
+    return 1;
+
+  for (int i = 1; i <= c->depth; i++) {
+    // find size
+    if ((i & 1UL) == 0) {
+      c->h /= 2;
+      c->h -= conf.vgaps/2 + conf.bord_size;
+    } else {
+      c->w /= 2;
+      c->w -= conf.hgaps/2 + conf.bord_size;
+    }
+
+    // find pos
+    if ((c->path >> (c->depth - i) & 1UL) == 0) {
+      if ((i & 1UL) == 1) {
+        c->x += c->w + conf.hgaps + conf.bord_size*2;
+      } else {
+        c->y += c->h + conf.vgaps + conf.bord_size*2;
+      }
+    }
+  }
+  return 0;
 }
 
 void manage(Window w, XWindowAttributes *wa) {
-  Client *newc = (Client *)malloc(sizeof(Client));
+  if (!w) {
+    printerr("window is null\n");
+    return;
+  }
+
+  Client *newc = createclient();
   newc->win = w;
-  newc->parent = NULL;
-  newc->next = NULL;
-  newc->prev = NULL;
-  newc->floating = false;
-  newc->manage = true;
-  newc->dock = false;
 
   newc->x = wa->x;
   newc->y = wa->y;
   newc->w = wa->width;
   newc->h = wa->height;
-  newc->split = 10;
 
   Atom wtype;
-  if (getatomprop(newc, netatom[NetWMWindowType], &wtype, 1)) {
+  if (getwinprop(newc, netatom[NetWMWindowType], &wtype, 1, XA_ATOM)) {
     if (wtype == netatom[NetWMWindowTypeDock]) {
-      int strut[12];
-      if (getcardprop(newc, netatom[NetWMStrutPartial], strut, LENGTH(strut))) {
+      unsigned long strut[12];
+      if (getwinprop(newc, netatom[NetWMStrutPartial], strut, LENGTH(strut), XA_CARDINAL)) {
         // left edge
         sxoff += strut[0];
-        swoff -= sxoff;
+        swoff -= strut[0];
         // right edge
         swoff -= strut[1];
         // top edge
         syoff += strut[2];
-        shoff -= syoff;
+        shoff -= strut[2];
         // bottom edge
         shoff -= strut[3];
       }
 
       XMapWindow(dpy, newc->win);
-      masterstacktile();
+      // may need to retile here?
+      // yes, it needs to resize everything because the dock removed the space
       free(newc);
       return;
     }
   }
 
-  XSelectInput(dpy, newc->win, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
   XSetWindowBorderWidth(dpy, newc->win, conf.bord_size);
 
-  if (!headc) {
-    headc = newc;
-    focused = newc;
+  // clean this up
+  if (focused == NULL) {
+    printf("focused is null\n");
+    newc->path = 0;
+    newc->depth = 0;
   } else {
-    Client *c = headc;
-    while (c->next)
-      c = c->next;
-    c->next = newc;
-    newc->prev = c;
-    newc->parent = focused;
+    printf("focused->depth:%d\n", focused->depth);
+    newc->path = focused->path;
+    newc->depth = focused->depth;
   }
 
-  masterstacktile();
-#ifdef DEBUG
-  printll();
-#endif
+  if (gototree(headc, &newc, newc->path, newc->depth, addtotree)) {
+    focused = newc;
+    looptree(headc, mapwins);
+    looptree(headc, updateborders);
+    looptree(headc, printbsptree);
+    looptree(headc, drawwindows);
+  }
 }
 
-void unmanage(Window deletewin) {
-  if (!deletewin)
-    return;
+int fixchildren(Client *c) {
+  // this is for a special case in unmanage()
 
-  Client *delc = headc;
-  while (delc && delc->win != deletewin)
-    delc = delc->next;
-
-  if (!delc) {
-    //printerr("cannot find client/window\n");
-    return;
+  if (!c)
+    return 0;
+  
+  if (c->a) {
+    //printf("has child a\n");
+    c->a->depth--;
+    c->a->path &= 1UL;
+    c->a->path |= (c->path << 1) & ~1UL;
+    //fixchildren(c->a);
+  }
+  if (c->b) {
+    //printf("has child b\n");
+    c->b->depth--;
+    c->b->path &= 1UL;
+    c->b->path |= (c->path << 1) & ~1UL;
+    //fixchildren(c->b);
   }
 
-#ifdef DEBUG
-  printll();
-#endif
-
-  Client *lastchild = NULL;
-  Client *firstchild = NULL;
-  for (Client *cl = delc; cl; cl = cl->next) {
-    if (cl->parent == delc) {
-      if (firstchild)
-        lastchild = cl;
-      else
-        firstchild = cl;
-    }
-  }
-
-  if (firstchild && lastchild) {
-    // detach
-    lastchild->prev->next = lastchild->next;
-    if (lastchild->next)
-      lastchild->next->prev = lastchild->prev;
-
-    // attach
-    lastchild->prev = firstchild->prev;
-    lastchild->prev->next = lastchild;
-    firstchild->prev = lastchild;
-    lastchild->next = firstchild;
-  }
-
-  if (delc == headc)
-    headc = delc->next;
-  if (delc->next)
-    delc->next->prev = delc->prev;
-  if (delc->prev)
-    delc->prev->next = delc->next;
-
-  for (Client *cl = delc; cl; cl = cl->next) {
-    if (cl->parent == delc) {
-      cl->parent = delc->parent;
-      if (delc->parent == NULL)
-        delc->parent = cl;
-    }
-  }
-
-  if (delc == focused) {
-    if (delc->parent)
-      focused = delc->parent;
-    else if (delc->next)
-      focused = delc->next;
-    else
-      focused = NULL;
-    setfocus(focused);
-  }
-
-  free(delc);
-#ifdef DEBUG
-  printll();
-#endif
-
-  masterstacktile();
+  return 1;
 }
 
-// yeah this name is never changing even though it's using something like bsp tiling xd
-void masterstacktile(void) {
-  for (Client *c = headc; c; c = c->next) {
-    if (!c->manage || c->floating || c->dock) {
-      continue;
-    }
-    if (c == headc) {
-      c->x = (screenx + sxoff) + conf.hgaps;
-      c->y = (screeny + syoff) + conf.vgaps;
-      c->w = (screenw + swoff) - (2*conf.hgaps + 2*conf.bord_size);
-      c->h = (screenh + shoff) - (2*conf.vgaps + 2*conf.bord_size);
-      continue;
-    }
-    if (!c->parent) {
-      continue;
-    }
-    if (c->parent->w >= c->parent->h) {
-      c->x = c->parent->x + (c->parent->w*(100-c->split))/100 + conf.hgaps/2 + conf.bord_size;
-      c->w = (c->parent->w*c->split)/100 - conf.hgaps/2 - conf.bord_size;
-      c->y = c->parent->y;
-      c->h = c->parent->h;
-      c->parent->w = (c->parent->w*(100-c->split))/100 - conf.hgaps/2 - conf.bord_size;
-    } else {
-      c->x = c->parent->x;
-      c->w = c->parent->w;
-      c->y = c->parent->y + (c->parent->h*(100-c->split))/100 + conf.vgaps/2 + conf.bord_size;
-      c->h = (c->parent->h*c->split)/100 - conf.vgaps/2 - conf.bord_size;
-      c->parent->h = (c->parent->h*(100-c->split))/100 - conf.vgaps/2 - conf.bord_size;
-    }
+void unmanage(Window w) {
+  // this function has bugs!
+  // may be fixed with the function above (fixchildren)?
+
+  if (!w)
+    return;
+
+  //printbsptree(headc);
+
+  Client *c = findclient(headc, w);
+  if (!c)
+    return;
+
+  printf("found client: ");
+  printpath(c->path, c->depth);
+  printf("\n");
+
+  // to delete all clients
+  if (c == headc) {
+    printf("deleted head\n");
+    free(headc);
+    headc = createclient();
+    focused = NULL;
+    return;
   }
 
-  for (Client *c = headc; c; c = c->next) {
-    if (c->manage && !c->dock) {
-      XMoveResizeWindow(dpy, c->win,
-          c->x, c->y, c->w, c->h);
-    }
+  // can't delete this node if it has both children
+  if (c->a && c->b) {
+    printerr("client is invalid (has both children)\n");
+    return;
+  }
+
+  Client *prevc = NULL;
+  /*printf("c->path %lb\n", c->path);
+  printf("c->depth %d\n", c->depth);
+  printf("c->path >> 1 %lb\n", c->path >> 1);
+  printf("c->depth - 1 %d\n", c->depth - 1);*/
+  if (!gototree(headc, &prevc, c->path >> 1, c->depth - 1, findclientpath)) {
+    printf("can't find prevc\n");
+    return;
+  }
+
+  if (!prevc)
+    return;
+  /*printf("pass 0\n");
+  printbsptree(headc);
+  printf("prevc win:%lx id:%lb\n", prevc->win, prevc->path);*/
+
+  printf("prevc: ");
+  printpath(prevc->path, prevc->depth);
+  printf("\n");
+
+  if (c == prevc) {
+    printf("##########\nc == prevc (this is an error state in unmanage)\n##########\n");
+    return;
+  }
+  //printf("pass -1\n");
+
+  /*if (prevc->a == NULL)
+    printf("!prevc->a\n");
+  if (prevc->b == NULL)
+    printf("!prevc->b\n");*/
+
+  if (!prevc->a && !prevc->b)
+    return;
+  //printf("pass 1\n");
+
+  if (focused == prevc->a || focused == prevc->b)
+    focused = prevc;
+  //printf("pass 2\n");
+
+  if (prevc->a == c) {
+    copyclientdata(prevc, prevc->b, True, False, True);
+  } else {
+    copyclientdata(prevc, prevc->a, True, False, True);
+  }
+
+  looptree(prevc, fixchildren);
+
+  printf("freeing c\n");
+  free(c);
+  printf("mapping wins (after deletion)\n");
+  looptree(headc, mapwins);
+  looptree(headc, drawwindows);
+  looptree(headc, printbsptree);
+  /*printf("afterfree\n");
+  printbsptree(headc);*/
+}
+
+int drawwindows(Client *c) {
+  if (!c)
+    return 0;
+
+  if (c->win != root) {
+    /*printf("win: path=%-8lb, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
+        c->path, c->win, c->x, c->y, c->w, c->h);*/
+    XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
     XMapWindow(dpy, c->win);
+    return 1;
   }
-
-  updateborders();
-}
-
-void updateborders() {
-  for (Client *c = headc; c; c = c->next) {
-    if (c->manage)
-      XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
-  }
+  return 0;
 }
 
 void setup(void) {
-
   int screen = DefaultScreen(dpy);
   root = RootWindow(dpy, screen);
   screenw = XDisplayWidth(dpy, screen);
@@ -398,7 +540,9 @@ void setup(void) {
   // https://tronche.com/gui/x/xlib/events/processing-overview.html
   XSelectInput(dpy, root, SubstructureRedirectMask|SubstructureNotifyMask|FocusChangeMask|EnterWindowMask|PropertyChangeMask);
 
-  headc = NULL;
+  headc = createclient();
+  focused = NULL;
+
   for (int i = 0; i < LASTEvent; i++)
     handler[i] = voidevent;
   handler[KeyPress] = keypress;
@@ -409,12 +553,12 @@ void setup(void) {
   handler[FocusIn] = focusin;
 
   conf = (Config){
-    .vgaps = 8,
-    .hgaps = 8,
+    .vgaps = 16,
+    .hgaps = 16,
     .bord_size = 4,
     .bord_foc_col = 0xffc4a7e7L,
     .bord_nor_col = 0xff26233aL,
-    .keyslen = 13,
+    .keyslen = 5,
   };
 
   // temp
@@ -427,7 +571,7 @@ void setup(void) {
   arg[1] = NULL;
   conf.keys[1] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}};
 
-  conf.keys[2] = (Key){Mod1Mask, XStringToKeysym("x"), kill, {0}};
+  conf.keys[2] = (Key){Mod1Mask, XStringToKeysym("x"), killfocused, {0}};
 
   arg = malloc(sizeof(char *) * 4);
   arg[0] = "rofi";
@@ -441,7 +585,7 @@ void setup(void) {
   arg[1] = NULL;
   conf.keys[4] = (Key){Mod1Mask, XStringToKeysym("d"), spawn, {.s = arg}};
 
-  conf.keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
+  /*conf.keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
   conf.keys[6] = (Key){Mod1Mask, XStringToKeysym("l"), focusswitch, {1}};
   conf.keys[7] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {2}};
   conf.keys[8] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {3}};
@@ -449,7 +593,7 @@ void setup(void) {
   conf.keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), growclient, {0}};
   conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), growclient, {1}};
   conf.keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), growclient, {2}};
-  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), growclient, {3}};
+  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), growclient, {3}};*/
 
   // grab input
   for (int i = 0; i < conf.keyslen; i++) {
@@ -458,10 +602,10 @@ void setup(void) {
   }
 
   // startup script
-  /*arg = malloc(sizeof(char *) * 2);
+  arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/startup";
   arg[1] = NULL;
-  spawn(&(Arg){.s = arg}); // temp*/
+  spawn(&(Arg){.s = arg}); // temp
 }
 
 void setupatoms(void) {
@@ -499,127 +643,34 @@ void setupatoms(void) {
       PropModeReplace, (unsigned char *) netatom, NetLast);
 }
 
-// this code needs to be worked on
-// there is some posix stuff that dwm does that this code DOES NOT DO
-// god know if this is fixed ^
+/*this code needs to be worked on
+ *there is some posix stuff that dwm does that this code DOES NOT DO
+ *god know if this is fixed ^
+ *prob fixed*/
 void spawn(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("spawning: %s\n", arg->s[0]);
 #endif
+
+  struct sigaction sa;
+
   if (fork() == 0) {
+    // close connection to the x server for the child
+    if (dpy)
+      close(ConnectionNumber(dpy));
     setsid();
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = SIG_DFL;
+    sigaction(SIGCHLD, &sa, NULL);
+
     execvp(arg->s[0], arg->s);
-    exit(0); // kill child process
+    exit(0); // kills child process
   }
 }
 
-Client *getcloseclient(Arg *arg) {
-  Client *closest = NULL;
-  // need to set to something very high xd
-  int closx = screenw*2;
-  int closy = screenh*2;
-  int focmidx = (focused->x*2 + focused->w)/2;
-  int focmidy = (focused->y*2 + focused->h)/2;
-
-  Client *c = headc;
-  while (c) {
-    if (c == focused) {
-      c = c->next;
-      continue;
-    }
-
-    int cmidx = (c->x*2+c->w)/2;
-    int cmidy = (c->y*2+c->h)/2;
-
-    if ((abs(cmidx-focmidx) + abs(cmidy-focmidy) <= closx + closy) &&
-        ((arg->i == 0 && cmidx-focmidx <= 0) ||
-         (arg->i == 1 && cmidx-focmidx >= 0) ||
-         (arg->i == 2 && cmidy-focmidy <= 0) ||
-         (arg->i == 3 && cmidy-focmidy >= 0)) &&
-        ((arg->i <= 1 && intersect(c->y, c->h, focused->y, focused->h)) ||
-         (arg->i >= 2 && intersect(c->x, c->w, focused->x, focused->w)))) {
-      closx = abs(cmidx-focmidx);
-      closy = abs(cmidy-focmidy);
-      closest = c;
-    }
-
-    c = c->next;
-  }
-  return closest;
-}
-
-// 0 left, 1 right, 2 up, 3 down
-void growclient(Arg *arg) {
-  if (!focused)
-    return;
-
-  //printf("split size = %d\n", focused->split);
-
-  Client *closest = getcloseclient(arg);
-
-  // shrink if no client
-  if (!closest) {
-    printf("no client\n");
-    return;
-  }
-
-  printll();
-
-  if (closest == focused->parent) {
-    focused->split += 1;
-  }
-  if (focused->split > 100)
-    focused->split = 100;
-  if (focused->split < 10)
-    focused->split = 10;
-
-  masterstacktile();
-}
-
-// 0 left, 1 right, 2 up, 3 down
-void focusswitch(Arg *arg) {
-  if (!focused)
-    return;
-
-  Client *closest = NULL;
-  // need to set to something very high xd
-  int closx = screenw*2;
-  int closy = screenh*2;
-  int focmidx = (focused->x*2 + focused->w)/2;
-  int focmidy = (focused->y*2 + focused->h)/2;
-
-  Client *c = headc;
-  while (c) {
-    if (c == focused) {
-      c = c->next;
-      continue;
-    }
-
-    int cmidx = (c->x*2+c->w)/2;
-    int cmidy = (c->y*2+c->h)/2;
-
-    if ((abs(cmidx-focmidx) + abs(cmidy-focmidy) <= closx + closy) &&
-        ((arg->i == 0 && cmidx-focmidx <= 0) ||
-         (arg->i == 1 && cmidx-focmidx >= 0) ||
-         (arg->i == 2 && cmidy-focmidy <= 0) ||
-         (arg->i == 3 && cmidy-focmidy >= 0)) &&
-        ((arg->i <= 1 && intersect(c->y, c->h, focused->y, focused->h)) ||
-         (arg->i >= 2 && intersect(c->x, c->w, focused->x, focused->w)))) {
-      closx = abs(cmidx-focmidx);
-      closy = abs(cmidy-focmidy);
-      closest = c;
-    }
-
-    c = c->next;
-  }
-
-  if (closest) {
-    focused = closest;
-    setfocus(closest);
-  }
-}
-
-void kill(Arg *arg) {
+void killfocused(Arg *arg) {
   if (!focused)
     return;
 

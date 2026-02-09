@@ -1,6 +1,16 @@
 #ifndef NWM_MAIN_H
 #define NWM_MAIN_H
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
+
+
 #define WM_NAME "nwm"
 
 #define LENGTH(X) (int)(sizeof(X) / sizeof(X[0]))
@@ -19,14 +29,11 @@ Atom netatom[NetLast];
 typedef struct Client Client;
 struct Client {
   Window win;
-  Client *parent;
-  Client *next;
-  Client *prev;
+  Client *a;
+  Client *b;
+  unsigned long path;
+  int depth;
   int x, y, w, h;
-  int split; // 0 - 100
-  bool floating;
-  bool manage;
-  bool dock;
 };
 
 typedef union Arg {
@@ -51,12 +58,11 @@ typedef struct Config {
   Key *keys;
 } Config;
 
-void printll(void);
+void printll(Client *c);
 void printerr(char *errstr);
 char keysymtostring(XKeyEvent *xkey);
-int getatomprop(Client *c, Atom prop, Atom *retatom, unsigned long retatomlen);
-int getcardprop(Client *c, Atom prop, int *strut, unsigned long strutlen);
-bool intersect(int x1, int w1, int x2, int w2);
+int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
+Bool intersect(int x1, int w1, int x2, int w2);
 
 void (*handler[LASTEvent])(XEvent*);
 void voidevent(XEvent *ev);
@@ -67,18 +73,20 @@ void destroynotify(XEvent *ev);
 void enternotify(XEvent *ev);
 void focusin(XEvent *ev);
 
+int looptree(Client *c, int (*func)(Client *));
+Client *findclient(Client *c, Window win);
+int findclientpath(Client *c, Client **retc);
+int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **));
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
 void manage(Window w, XWindowAttributes *wa);
 void unmanage(Window destroywin);
-void masterstacktile(void);
-void updateborders(void);
+int drawwindows(Client *c);
+int updateborders(Client *c);
 void setup(void);
 void setupatoms(void);
 void spawn(Arg *arg);
-void focusswitch(Arg *arg);
-void growclient(Arg *arg);
-void kill(Arg *arg);
+void killfocused(Arg *arg);
 void exitwm(Arg *arg);
 int (*xerrorxlib)(Display *, XErrorEvent *);
 int xerror(Display *dpy, XErrorEvent *ee);
@@ -92,7 +100,6 @@ Config conf;
 Display *dpy;
 Window root;
 
-int screenx, screeny;
 int screenw, screenh;
 // ScreenXOFF, ScreenYOFF...
 int sxoff, syoff;
