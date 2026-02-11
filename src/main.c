@@ -528,6 +528,79 @@ int drawwindows(Client *c) {
   return 0;
 }
 
+unsigned long deinterleave(unsigned long a) {
+  a &= 0x55555555;
+  a = (a | (a >> 1)) & 0x33333333;
+  a = (a | (a >> 2)) & 0x0f0f0f0f;
+  a = (a | (a >> 4)) & 0x00ff00ff;
+  a = (a | (a >> 8)) & 0x0000ffff;
+
+  a = (a | (a >> 1)) & 0x5555555555555555;
+  a = (a | (a >> 2)) & 0x3333333333333333;
+  a = (a | (a >> 4)) & 0x0f0f0f0f0f0f0f0f;
+  a = (a | (a >> 8)) & 0x00ff00ff00ff00ff;
+  a = (a | (a >> 16)) & 0x0000ffff0000ffff;
+  return a;
+}
+
+unsigned long interleave(unsigned long a, unsigned long b) {
+  a = (a | (a << 16)) & 0x0000ffff0000ffff;
+  a = (a | (a << 8)) & 0x00ff00ff00ff00ff;
+  a = (a | (a << 4)) & 0x0f0f0f0f0f0f0f0f;
+  a = (a | (a << 2)) & 0x3333333333333333;
+  a = (a | (a << 1)) & 0x5555555555555555;
+
+  b = (b | (b << 16)) & 0x0000ffff0000ffff;
+  b = (b | (b << 8)) & 0x00ff00ff00ff00ff;
+  b = (b | (b << 4)) & 0x0f0f0f0f0f0f0f0f;
+  b = (b | (b << 2)) & 0x3333333333333333;
+  b = (b | (b << 1)) & 0x5555555555555555;
+  return a | (b << 1);
+}
+
+void focusswitch(Arg *arg) {
+  /*unsigned long tempfocuspath = focused->path;
+  int tempfocusdepth = focused->depth;
+  focused->path = 0b011;
+  focused->depth = 3;*/
+
+  printf("focus dir: %d\n", arg->i);
+  printf("focused path: ");
+  printpath(focused->path, focused->depth);
+  printf("\n");
+  printf("focused depth: %d\n", focused->depth);
+
+  unsigned long destpatha = deinterleave(focused->path);
+  unsigned long destpathb = deinterleave(focused->path >> 1);
+
+  switch (arg->i) {
+    case 0:
+      destpatha++;
+      break;
+    case 1:
+      destpatha--;
+      break;
+    case 2:
+      destpathb--;
+      break;
+    case 3:
+      destpathb++;
+      break;
+  }
+
+  unsigned long destpath = interleave(destpatha, destpathb);
+
+  printf("destpatha: %lb or ", destpatha);
+  printpath(destpatha, focused->depth);
+  printf("\n");
+  printf("destpathb: %lb or ", destpathb);
+  printpath(destpathb, focused->depth);
+  printf("\n");
+  printf("destpath: ");
+  printpath(destpath, focused->depth);
+  printf("\n");
+}
+
 void setup(void) {
   int screen = DefaultScreen(dpy);
   root = RootWindow(dpy, screen);
@@ -558,7 +631,7 @@ void setup(void) {
     .bord_size = 4,
     .bord_foc_col = 0xffc4a7e7L,
     .bord_nor_col = 0xff26233aL,
-    .keyslen = 5,
+    .keyslen = 9,
   };
 
   // temp
@@ -584,6 +657,11 @@ void setup(void) {
   arg[0] = "polybar";
   arg[1] = NULL;
   conf.keys[4] = (Key){Mod1Mask, XStringToKeysym("d"), spawn, {.s = arg}};
+
+  conf.keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
+  conf.keys[6] = (Key){Mod1Mask, XStringToKeysym("l"), focusswitch, {1}};
+  conf.keys[7] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {2}};
+  conf.keys[8] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {3}};
 
   /*conf.keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
   conf.keys[6] = (Key){Mod1Mask, XStringToKeysym("l"), focusswitch, {1}};

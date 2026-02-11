@@ -58,11 +58,13 @@ typedef struct Config {
   Key *keys;
 } Config;
 
-void printll(Client *c);
 void printerr(char *errstr);
 char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
-Bool intersect(int x1, int w1, int x2, int w2);
+int looptree(Client *c, int (*func)(Client *));
+Client *findclient(Client *c, Window win);
+int findclientpath(Client *c, Client **retc);
+int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **));
 
 void (*handler[LASTEvent])(XEvent*);
 void voidevent(XEvent *ev);
@@ -73,10 +75,7 @@ void destroynotify(XEvent *ev);
 void enternotify(XEvent *ev);
 void focusin(XEvent *ev);
 
-int looptree(Client *c, int (*func)(Client *));
-Client *findclient(Client *c, Window win);
-int findclientpath(Client *c, Client **retc);
-int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **));
+void focusswitch(Arg *arg);
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
 void manage(Window w, XWindowAttributes *wa);
