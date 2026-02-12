@@ -559,26 +559,6 @@ unsigned int findpath(unsigned int path, int depth, bool dir) {
   return path;
 }
 
-/*
- * if 0:
- *  flip to 1
- * if 1:
- *  set this to 0
- *  go back 1 bit
- *  repeat this function
- *
- * x 0b0 -> 0b1
- *  0b100 -> 0b001
- * x 0b011 -> 0b110
- * x 0b001 -> 0b101
- * x 0b000 -> 0b100
- * x 0b0010 -> 0b0110
- * x 0b0011 -> 0b0111
- * x 0b00111 -> 0b10111
- *  0b10110 -> 0b00011
- *  0b10011 -> 0b00111
- */
-
 void focusswitch(Arg *arg) {
   /*printf("focus dir: %d\n", arg->i);
   printf("focused path: %.16b or ", focused->path);
