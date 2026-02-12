@@ -31,7 +31,7 @@ struct Client {
   Window win;
   Client *a;
   Client *b;
-  unsigned long path;
+  unsigned int path;
   int depth;
   int x, y, w, h;
 };
@@ -64,7 +64,7 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
 int looptree(Client *c, int (*func)(Client *));
 Client *findclient(Client *c, Window win);
 int findclientpath(Client *c, Client **retc);
-int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **));
+int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
 
 void (*handler[LASTEvent])(XEvent*);
 void voidevent(XEvent *ev);

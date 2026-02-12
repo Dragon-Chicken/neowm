@@ -1,3 +1,4 @@
 #/bin/sh
+#picom &
 polybar &
 feh --bg-fill ~/dotfiles/images/wallpaper.png &

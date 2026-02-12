@@ -1,9 +1,9 @@
 #include "main.h"
 
 // helper
-void printpath(int path, int depth) {
-  for (int i = depth; i >= 1; i--) {
-    if (((path >> (i - 1)) & 1UL) == 1) {
+void printpath(unsigned int path, int depth) {
+  for (int i = 0; i < depth; i++) {
+    if ((path & (1 << i)) == 1) {
       printf("1");
     } else {
       printf("0");
@@ -21,11 +21,11 @@ int printbsptree(Client *c) {
   if (c == headc) {
     printf("id=root    , ");
   } else {
-    //printf("id=%-8lb, ", c->path);
+    //printf("id=%-8b, ", c->path);
     printf("id=");
     printpath(c->path, c->depth);
-    printf(", ");
   }
+  printf(" (%.8b), ", c->path);
   printf("win=%-8lx, d=%-4d", c->win, c->depth);
   /*if (c->a)
     printf(", a->path=%-8lb, a->win=%-8lx", c->a->path, c->a->win);
@@ -73,7 +73,7 @@ Client *createclient(void) {
   c->y = 0;
   c->w = 0;
   c->h = 0;
-  c->path = 0UL;
+  c->path = 0;
   return c;
 }
 
@@ -95,24 +95,25 @@ void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
   }
 }
 
-int gototree(Client *c, Client **retc, unsigned long path, int depth, int (*func)(Client *, Client **)) {
+int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **)) {
   if (depth < 0) {
     printf("depth < 0\n");
     return 0;
-  }
-  if (depth <= 0) {
-    printf("running func\n");
-    return func(c, retc);
   }
   if (!c) {
     printf("c is null\n");
     return 0;
   }
+  if (depth <= 0 || !c->a || !c->b) {
+    printf("running func\n");
+    return func(c, retc);
+  }
 
-  if (((path >> (depth - 1)) & 1UL) == 1)
-    return gototree(c->a, retc, path, depth - 1, func);
+
+  if (path & 1)
+    return gototree(c->a, retc, path >> 1, depth - 1, func);
   else
-    return gototree(c->b, retc, path, depth - 1, func);
+    return gototree(c->b, retc, path >> 1, depth - 1, func);
 }
 
 int findclientpath(Client *c, Client **retc) {
@@ -276,22 +277,26 @@ void setfocus(Client *c) {
 }
 
 int addtotree(Client *c, Client **newc) {
-  if (!c)
+  if (!c) {
+    printf("c is null\n");
     return 0;
+  }
   if (c->win != root) {
+    printf("c != root\n");
     c->b = *newc;
     c->a = createclient();
     copyclientdata(c->a, c, True, True, False);
     c->win = root;
     c->a->depth++;
     c->b->depth++;
-    c->a->path = (c->a->path << 1) | 1;
-    c->b->path = (c->b->path << 1) & ~(1);
+    c->a->path = c->a->path | (1 << c->depth);
+    c->b->path = c->b->path & ~(1 << c->depth);
     if (c == focused)
       focused = *newc;
-    printf("c->a win:%lx path:%lb\n", c->a->win, c->a->path);
-    printf("c->b win:%lx path:%lb\n", c->b->win, c->b->path);
+    printf("c->a win:%lx path:%b\n", c->a->win, c->a->path);
+    printf("c->b win:%lx path:%b\n", c->b->win, c->b->path);
   } else {
+    printf("c == root\n");
     copyclientdata(c, *newc, True, True, False);
     free(*newc);
     *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
@@ -318,9 +323,9 @@ int mapwins(Client *c) {
   if (c->win == root)
     return 1;
 
-  for (int i = 1; i <= c->depth; i++) {
+  for (int i = 0; i < c->depth; i++) {
     // find size
-    if ((i & 1UL) == 0) {
+    if ((i & 1) == 1) {
       c->h /= 2;
       c->h -= conf.vgaps/2 + conf.bord_size;
     } else {
@@ -328,9 +333,14 @@ int mapwins(Client *c) {
       c->w -= conf.hgaps/2 + conf.bord_size;
     }
 
+    //printf("c->path=%.8lb\n", c->path);
+    //printf("c->depth=%d\n", c->depth);
+    //printf("1UL << i=%.8lb\n", 1UL << i);
+    
     // find pos
-    if ((c->path >> (c->depth - i) & 1UL) == 0) {
-      if ((i & 1UL) == 1) {
+    if ((c->path & (1 << i)) == 0) {
+      printf("0\n");
+      if ((i & 1) == 0) {
         c->x += c->w + conf.hgaps + conf.bord_size*2;
       } else {
         c->y += c->h + conf.vgaps + conf.bord_size*2;
@@ -381,7 +391,6 @@ void manage(Window w, XWindowAttributes *wa) {
 
   XSetWindowBorderWidth(dpy, newc->win, conf.bord_size);
 
-  // clean this up
   if (focused == NULL) {
     printf("focused is null\n");
     newc->path = 0;
@@ -393,11 +402,14 @@ void manage(Window w, XWindowAttributes *wa) {
   }
 
   if (gototree(headc, &newc, newc->path, newc->depth, addtotree)) {
+    printf("added to tree?\n");
     focused = newc;
     looptree(headc, mapwins);
     looptree(headc, updateborders);
     looptree(headc, printbsptree);
     looptree(headc, drawwindows);
+  } else {
+    printf("failed to add to tree\n");
   }
 }
 
@@ -408,18 +420,12 @@ int fixchildren(Client *c) {
     return 0;
   
   if (c->a) {
-    //printf("has child a\n");
     c->a->depth--;
-    c->a->path &= 1UL;
-    c->a->path |= (c->path << 1) & ~1UL;
-    //fixchildren(c->a);
+    c->a->path = c->path | (1 << (c->a->depth - 1));
   }
   if (c->b) {
-    //printf("has child b\n");
     c->b->depth--;
-    c->b->path &= 1UL;
-    c->b->path |= (c->path << 1) & ~1UL;
-    //fixchildren(c->b);
+    c->b->path = c->path & ~(1 << (c->b->depth - 1));
   }
 
   return 1;
@@ -462,7 +468,7 @@ void unmanage(Window w) {
   printf("c->depth %d\n", c->depth);
   printf("c->path >> 1 %lb\n", c->path >> 1);
   printf("c->depth - 1 %d\n", c->depth - 1);*/
-  if (!gototree(headc, &prevc, c->path >> 1, c->depth - 1, findclientpath)) {
+  if (!gototree(headc, &prevc, c->path, c->depth - 1, findclientpath)) {
     printf("can't find prevc\n");
     return;
   }
@@ -528,77 +534,86 @@ int drawwindows(Client *c) {
   return 0;
 }
 
-unsigned long deinterleave(unsigned long a) {
-  a &= 0x55555555;
-  a = (a | (a >> 1)) & 0x33333333;
-  a = (a | (a >> 2)) & 0x0f0f0f0f;
-  a = (a | (a >> 4)) & 0x00ff00ff;
-  a = (a | (a >> 8)) & 0x0000ffff;
+unsigned int findpath(unsigned int path, int depth, bool dir) {
+  printf("finding path\n");
 
-  a = (a | (a >> 1)) & 0x5555555555555555;
-  a = (a | (a >> 2)) & 0x3333333333333333;
-  a = (a | (a >> 4)) & 0x0f0f0f0f0f0f0f0f;
-  a = (a | (a >> 8)) & 0x00ff00ff00ff00ff;
-  a = (a | (a >> 16)) & 0x0000ffff0000ffff;
-  return a;
+  if (!(depth & 1)) {
+    depth--;
+  }
+  for (int i = depth - 1; i >= 0; i -= 2) {
+    printf("path: %.8b\n", path);
+    printf("i: %d\n", i);
+    printf("1 << i: %.8b\n", 1 << i);
+    if ((path >> i) & 1) {
+      printf("path at i 1\n");
+      path = path & ~(1 << i);
+      if (!dir)
+        break;
+    } else {
+      printf("path at i 0\n");
+      path = path | (1 << i);
+      if (dir)
+        break;
+    }
+  }
+  return path;
 }
 
-unsigned long interleave(unsigned long a, unsigned long b) {
-  a = (a | (a << 16)) & 0x0000ffff0000ffff;
-  a = (a | (a << 8)) & 0x00ff00ff00ff00ff;
-  a = (a | (a << 4)) & 0x0f0f0f0f0f0f0f0f;
-  a = (a | (a << 2)) & 0x3333333333333333;
-  a = (a | (a << 1)) & 0x5555555555555555;
-
-  b = (b | (b << 16)) & 0x0000ffff0000ffff;
-  b = (b | (b << 8)) & 0x00ff00ff00ff00ff;
-  b = (b | (b << 4)) & 0x0f0f0f0f0f0f0f0f;
-  b = (b | (b << 2)) & 0x3333333333333333;
-  b = (b | (b << 1)) & 0x5555555555555555;
-  return a | (b << 1);
-}
+/*
+ * if 0:
+ *  flip to 1
+ * if 1:
+ *  set this to 0
+ *  go back 1 bit
+ *  repeat this function
+ *
+ * x 0b0 -> 0b1
+ *  0b100 -> 0b001
+ * x 0b011 -> 0b110
+ * x 0b001 -> 0b101
+ * x 0b000 -> 0b100
+ * x 0b0010 -> 0b0110
+ * x 0b0011 -> 0b0111
+ * x 0b00111 -> 0b10111
+ *  0b10110 -> 0b00011
+ *  0b10011 -> 0b00111
+ */
 
 void focusswitch(Arg *arg) {
-  /*unsigned long tempfocuspath = focused->path;
-  int tempfocusdepth = focused->depth;
-  focused->path = 0b011;
-  focused->depth = 3;*/
-
-  printf("focus dir: %d\n", arg->i);
-  printf("focused path: ");
+  /*printf("focus dir: %d\n", arg->i);
+  printf("focused path: %.16b or ", focused->path);
   printpath(focused->path, focused->depth);
   printf("\n");
-  printf("focused depth: %d\n", focused->depth);
+  printf("focused depth: %d\n", focused->depth);*/
 
-  unsigned long destpatha = deinterleave(focused->path);
-  unsigned long destpathb = deinterleave(focused->path >> 1);
+  unsigned int destpath = 0;
 
   switch (arg->i) {
     case 0:
-      destpatha++;
+      destpath = findpath(focused->path, focused->depth, 1);
       break;
     case 1:
-      destpatha--;
+      destpath = findpath(focused->path, focused->depth, 0);
       break;
     case 2:
-      destpathb--;
+      destpath = findpath(focused->path >> 1, focused->depth - 1, 0);
+      destpath <<= 1;
+      destpath |= focused->path & 1;
       break;
     case 3:
-      destpathb++;
+      destpath = findpath(focused->path >> 1, focused->depth - 1, 1);
+      destpath <<= 1;
+      destpath |= focused->path & 1;
       break;
   }
 
-  unsigned long destpath = interleave(destpatha, destpathb);
+  printf("destpath: %.16b \n", destpath);
 
-  printf("destpatha: %lb or ", destpatha);
-  printpath(destpatha, focused->depth);
-  printf("\n");
-  printf("destpathb: %lb or ", destpathb);
-  printpath(destpathb, focused->depth);
-  printf("\n");
-  printf("destpath: ");
-  printpath(destpath, focused->depth);
-  printf("\n");
+  if (!gototree(headc, &focused, destpath, 32, findclientpath)) {
+    printf("can't find client\n");
+  }
+
+  looptree(headc, updateborders);
 }
 
 void setup(void) {
