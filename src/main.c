@@ -1,6 +1,10 @@
 #include "main.h"
 
-// helper
+// debug
+void printerr(char *errstr) {
+  fprintf(stderr, "%s: error: %s", WM_NAME, errstr);
+}
+
 void printpath(unsigned int path, int depth) {
   for (int i = 0; i < depth; i++) {
     if ((path & (1 << i)) == 1) {
@@ -36,10 +40,8 @@ int printbsptree(Client *c) {
   return 1;
 }
 
-void printerr(char *errstr) {
-  fprintf(stderr, "%s: error: %s", WM_NAME, errstr);
-}
 
+// helpers
 char keysymtostring(XKeyEvent *xkey) {
   return *XKeysymToString(XLookupKeysym(xkey, 0));
 }
@@ -63,95 +65,8 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
   return 0;
 }
 
-Client *createclient(void) {
-  Client *c = (Client *)malloc(sizeof(Client));
-  c->a = NULL;
-  c->b = NULL;
-  c->p = NULL;
-  c->win = root;
-  c->path = 0;
-  c->depth = 0;
-  c->split = 50;
-  c->x = 0;
-  c->y = 0;
-  c->w = screenw;
-  c->h = screenh;
-  return c;
-}
 
-void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
-  if (win) {
-    a->win = b->win;
-    a->x = b->x;
-    a->y = b->y;
-    a->w = b->w;
-    a->h = b->h;
-  }
-  if (path) {
-    a->path = b->path;
-    a->depth = b->depth;
-    a->p = b->p;
-  }
-  if (ab) {
-    a->a = b->a;
-    a->b = b->b;
-  }
-}
-
-int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **)) {
-  if (depth < 0) {
-    printf("depth < 0\n");
-    return 0;
-  }
-  if (!c) {
-    printf("c is null\n");
-    return 0;
-  }
-  if (depth <= 0 || !c->a || !c->b) {
-    //printf("running func\n");
-    return func(c, retc);
-  }
-
-
-  if (path & 1)
-    return gototree(c->a, retc, path >> 1, depth - 1, func);
-  else
-    return gototree(c->b, retc, path >> 1, depth - 1, func);
-}
-
-int findclientpath(Client *c, Client **retc) {
-  *retc = c;
-  return 1;
-}
-
-Client *findclient(Client *c, Window win) {
-  Client *retc = NULL;
-  if (c->win == win) {
-    return c;
-  } else {
-    if (c->a)
-      retc = findclient(c->a, win);
-    if (c->b && !retc)
-      retc = findclient(c->b, win);
-  }
-  return retc;
-}
-
-int looptree(Client *c, int (*func)(Client *)) {
-  if (!c)
-    return 0;
-
-  func(c);
-
-  if (c->a)
-    looptree(c->a, func);
-  if (c->b)
-    looptree(c->b, func);
-  return 0;
-}
-
-
-// event handler
+// events
 void voidevent(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(void event)\n");
@@ -238,84 +153,101 @@ void focusin(XEvent *ev) {
 }
 
 
-// others
-int sendevent(Client *c, Atom proto) {
-  int n;
-  Atom *protocols;
-  int exists = 0;
-  XEvent ev;
-
-  if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
-    while (!exists && n--)
-      exists = protocols[n] == proto;
-    XFree(protocols);
-  }
-
-  if (exists) {
-    ev.type = ClientMessage;
-    //ev.xclient.type = ClientMessage;
-    ev.xclient.window = c->win;
-    ev.xclient.message_type = wmatom[WMProtocols];
-    ev.xclient.format = 32;
-    ev.xclient.data.l[0] = proto;
-    ev.xclient.data.l[1] = CurrentTime;
-    XSendEvent(dpy, c->win, False, NoEventMask, &ev);
-  }
-
-  return exists;
+// client
+Client *createclient(void) {
+  Client *c = (Client *)malloc(sizeof(Client));
+  c->a = NULL;
+  c->b = NULL;
+  c->p = NULL;
+  c->win = root;
+  c->path = 0;
+  c->depth = 0;
+  c->split = 50;
+  c->x = 0;
+  c->y = 0;
+  c->w = screenw;
+  c->h = screenh;
+  return c;
 }
 
-void setfocus(Client *c) {
-  if (!c) {
-    return;
+void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
+  if (win) {
+    a->win = b->win;
+    a->x = b->x;
+    a->y = b->y;
+    a->w = b->w;
+    a->h = b->h;
   }
-  XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
-  focused = c; // make sure focus is set
-  XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
-  XChangeProperty(dpy, root, netatom[NetActiveWindow],
-      XA_WINDOW, 32, PropModeReplace,
-      (unsigned char *) &(c->win), 1);
-  sendevent(c, wmatom[WMTakeFocus]); // god know what this does
-  looptree(headc, updateborders);
+  if (path) {
+    a->path = b->path;
+    a->depth = b->depth;
+    a->p = b->p;
+  }
+  if (ab) {
+    a->a = b->a;
+    a->b = b->b;
+  }
 }
 
-int addtotree(Client *c, Client **newc) {
-  if (!c) {
-    printf("c is null\n");
-    return 0;
+unsigned int findpath(unsigned int path, int depth, bool dir) {
+  printf("finding path\n");
+
+  if (dir == 0)
+    depth = 32;
+
+  if (!(depth & 1)) {
+    depth--;
   }
-  if (c->win != root) {
-    printf("c != root\n");
-    c->b = *newc;
-    c->a = createclient();
-    copyclientdata(c->a, c, True, True, False);
-    c->win = root;
-    c->a->depth++;
-    c->b->depth++;
-    c->a->path = c->a->path | (1 << c->depth);
-    c->b->path = c->b->path & ~(1 << c->depth);
-    if (c == focused)
-      focused = *newc;
-    printf("c->a win:%lx path:%b\n", c->a->win, c->a->path);
-    printf("c->b win:%lx path:%b\n", c->b->win, c->b->path);
-    c->a->p = c;
-    c->b->p = c;
-  } else {
-    printf("c == root\n");
-    copyclientdata(c, *newc, True, True, False);
-    free(*newc);
-    c->p = NULL;
-    *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
+  for (int i = depth - 1; i >= 0; i -= 2) {
+    printf("path: %.8b\n", path);
+    printf("i: %d\n", i);
+    printf("1 << i: %.8b\n", 1 << i);
+    if ((path >> i) & 1) {
+      printf("path at i 1\n");
+      path = path & ~(1 << i);
+      if (!dir)
+        break;
+    } else {
+      printf("path at i 0\n");
+      path = path | (1 << i);
+      if (dir)
+        break;
+    }
   }
-  return 1;
+  return path;
 }
 
-int updateborders(Client *c) {
-  if (!c)
-    return 0;
+Client *findclientindir(Client *incl, int dir) {
+  unsigned int destpath = 0;
+  Client *cl;
 
-  XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
-  return 1;
+  switch (dir) {
+    case 0:
+      destpath = findpath(incl->path, incl->depth, 1);
+      break;
+    case 1:
+      destpath = findpath(incl->path, incl->depth, 0);
+      break;
+    case 2:
+      destpath = findpath(incl->path >> 1, incl->depth - 1, 0);
+      destpath <<= 1;
+      destpath |= incl->path & 1;
+      break;
+    case 3:
+      destpath = findpath(incl->path >> 1, incl->depth - 1, 1);
+      destpath <<= 1;
+      destpath |= incl->path & 1;
+      break;
+  }
+
+  //printf("destpath: %.16b\n", destpath);
+
+  if (!gototree(headc, &cl, destpath, 32, findclientpath)) {
+    printf("can't find client\n");
+    return NULL;
+  }
+
+  return cl;
 }
 
 int mapwins(Client *c) {
@@ -591,81 +523,93 @@ void unmanage(Window w) {
   printbsptree(headc);*/
 }
 
-int drawwindows(Client *c) {
+
+// bsp
+int looptree(Client *c, int (*func)(Client *)) {
   if (!c)
     return 0;
 
-  if (c->win != root) {
-    /*printf("win: path=%-8lb, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
-        c->path, c->win, c->x, c->y, c->w, c->h);*/
-    XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
-    XMapWindow(dpy, c->win);
-    return 1;
-  }
+  func(c);
+
+  if (c->a)
+    looptree(c->a, func);
+  if (c->b)
+    looptree(c->b, func);
   return 0;
 }
 
-unsigned int findpath(unsigned int path, int depth, bool dir) {
-  printf("finding path\n");
-
-  if (dir == 0)
-    depth = 32;
-
-  if (!(depth & 1)) {
-    depth--;
+Client *findclient(Client *c, Window win) {
+  Client *retc = NULL;
+  if (c->win == win) {
+    return c;
+  } else {
+    if (c->a)
+      retc = findclient(c->a, win);
+    if (c->b && !retc)
+      retc = findclient(c->b, win);
   }
-  for (int i = depth - 1; i >= 0; i -= 2) {
-    printf("path: %.8b\n", path);
-    printf("i: %d\n", i);
-    printf("1 << i: %.8b\n", 1 << i);
-    if ((path >> i) & 1) {
-      printf("path at i 1\n");
-      path = path & ~(1 << i);
-      if (!dir)
-        break;
-    } else {
-      printf("path at i 0\n");
-      path = path | (1 << i);
-      if (dir)
-        break;
-    }
-  }
-  return path;
+  return retc;
 }
 
-Client *findclientindir(Client *incl, int dir) {
-  unsigned int destpath = 0;
-  Client *cl;
-
-  switch (dir) {
-    case 0:
-      destpath = findpath(incl->path, incl->depth, 1);
-      break;
-    case 1:
-      destpath = findpath(incl->path, incl->depth, 0);
-      break;
-    case 2:
-      destpath = findpath(incl->path >> 1, incl->depth - 1, 0);
-      destpath <<= 1;
-      destpath |= incl->path & 1;
-      break;
-    case 3:
-      destpath = findpath(incl->path >> 1, incl->depth - 1, 1);
-      destpath <<= 1;
-      destpath |= incl->path & 1;
-      break;
-  }
-
-  //printf("destpath: %.16b\n", destpath);
-
-  if (!gototree(headc, &cl, destpath, 32, findclientpath)) {
-    printf("can't find client\n");
-    return NULL;
-  }
-
-  return cl;
+int findclientpath(Client *c, Client **retc) {
+  *retc = c;
+  return 1;
 }
 
+int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **)) {
+  if (depth < 0) {
+    printf("depth < 0\n");
+    return 0;
+  }
+  if (!c) {
+    printf("c is null\n");
+    return 0;
+  }
+  if (depth <= 0 || !c->a || !c->b) {
+    //printf("running func\n");
+    return func(c, retc);
+  }
+
+
+  if (path & 1)
+    return gototree(c->a, retc, path >> 1, depth - 1, func);
+  else
+    return gototree(c->b, retc, path >> 1, depth - 1, func);
+}
+
+int addtotree(Client *c, Client **newc) {
+  if (!c) {
+    printf("c is null\n");
+    return 0;
+  }
+  if (c->win != root) {
+    printf("c != root\n");
+    c->b = *newc;
+    c->a = createclient();
+    copyclientdata(c->a, c, True, True, False);
+    c->win = root;
+    c->a->depth++;
+    c->b->depth++;
+    c->a->path = c->a->path | (1 << c->depth);
+    c->b->path = c->b->path & ~(1 << c->depth);
+    if (c == focused)
+      focused = *newc;
+    printf("c->a win:%lx path:%b\n", c->a->win, c->a->path);
+    printf("c->b win:%lx path:%b\n", c->b->win, c->b->path);
+    c->a->p = c;
+    c->b->p = c;
+  } else {
+    printf("c == root\n");
+    copyclientdata(c, *newc, True, True, False);
+    free(*newc);
+    c->p = NULL;
+    *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
+  }
+  return 1;
+}
+
+
+// keypress
 int focusswitch(Arg *arg) {
   /*printf("focus dir: %d\n", arg->i);
   printf("focused path: %.16b or ", focused->path);
@@ -729,6 +673,124 @@ int resizeclient(Arg *arg) {
   return 1;
 }
 
+/*this code needs to be worked on
+ *there is some posix stuff that dwm does that this code DOES NOT DO
+ *god know if this is fixed ^
+ *prob fixed*/
+int spawn(Arg *arg) {
+#ifdef NWM_DEBUG
+  printf("spawning: %s\n", arg->s[0]);
+#endif
+
+  struct sigaction sa;
+
+  if (fork() == 0) {
+    // close connection to the x server for the child
+    if (dpy)
+      close(ConnectionNumber(dpy));
+    setsid();
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = SIG_DFL;
+    sigaction(SIGCHLD, &sa, NULL);
+
+    execvp(arg->s[0], arg->s);
+    exit(0); // kills child process
+  }
+
+  return 1;
+}
+
+int killfocused(Arg *arg) {
+  if (!focused)
+    return 0;
+
+  if (!sendevent(focused, wmatom[WMDelete])) {
+    XGrabServer(dpy);
+    XSetErrorHandler(xerrordummy);
+    XSetCloseDownMode(dpy, DestroyAll);
+    XKillClient(dpy, focused->win);
+    XSync(dpy, False);
+    XSetErrorHandler(xerror);
+    XUngrabServer(dpy);
+  }
+
+  return 1;
+}
+
+int exitwm(Arg *arg) {
+  XCloseDisplay(dpy);
+  exit(arg->i);
+  return 1;
+}
+
+
+// x11
+int sendevent(Client *c, Atom proto) {
+  int n;
+  Atom *protocols;
+  int exists = 0;
+  XEvent ev;
+
+  if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
+    while (!exists && n--)
+      exists = protocols[n] == proto;
+    XFree(protocols);
+  }
+
+  if (exists) {
+    ev.type = ClientMessage;
+    //ev.xclient.type = ClientMessage;
+    ev.xclient.window = c->win;
+    ev.xclient.message_type = wmatom[WMProtocols];
+    ev.xclient.format = 32;
+    ev.xclient.data.l[0] = proto;
+    ev.xclient.data.l[1] = CurrentTime;
+    XSendEvent(dpy, c->win, False, NoEventMask, &ev);
+  }
+
+  return exists;
+}
+
+void setfocus(Client *c) {
+  if (!c) {
+    return;
+  }
+  XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+  focused = c; // make sure focus is set
+  XSetInputFocus(dpy, c->win, RevertToPointerRoot, CurrentTime);
+  XChangeProperty(dpy, root, netatom[NetActiveWindow],
+      XA_WINDOW, 32, PropModeReplace,
+      (unsigned char *) &(c->win), 1);
+  sendevent(c, wmatom[WMTakeFocus]); // god know what this does
+  looptree(headc, updateborders);
+}
+
+int updateborders(Client *c) {
+  if (!c)
+    return 0;
+
+  XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
+  return 1;
+}
+
+int drawwindows(Client *c) {
+  if (!c)
+    return 0;
+
+  if (c->win != root) {
+    /*printf("win: path=%-8lb, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
+        c->path, c->win, c->x, c->y, c->w, c->h);*/
+    XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+    XMapWindow(dpy, c->win);
+    return 1;
+  }
+  return 0;
+}
+
+
+// others
 void setup(void) {
   int screen = DefaultScreen(dpy);
   root = RootWindow(dpy, screen);
@@ -842,58 +904,6 @@ void setupatoms(void) {
 
   XChangeProperty(dpy, root, netatom[NetSupported], XA_ATOM, 32,
       PropModeReplace, (unsigned char *) netatom, NetLast);
-}
-
-/*this code needs to be worked on
- *there is some posix stuff that dwm does that this code DOES NOT DO
- *god know if this is fixed ^
- *prob fixed*/
-int spawn(Arg *arg) {
-#ifdef NWM_DEBUG
-  printf("spawning: %s\n", arg->s[0]);
-#endif
-
-  struct sigaction sa;
-
-  if (fork() == 0) {
-    // close connection to the x server for the child
-    if (dpy)
-      close(ConnectionNumber(dpy));
-    setsid();
-
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = SIG_DFL;
-    sigaction(SIGCHLD, &sa, NULL);
-
-    execvp(arg->s[0], arg->s);
-    exit(0); // kills child process
-  }
-
-  return 1;
-}
-
-int killfocused(Arg *arg) {
-  if (!focused)
-    return 0;
-
-  if (!sendevent(focused, wmatom[WMDelete])) {
-    XGrabServer(dpy);
-    XSetErrorHandler(xerrordummy);
-    XSetCloseDownMode(dpy, DestroyAll);
-    XKillClient(dpy, focused->win);
-    XSync(dpy, False);
-    XSetErrorHandler(xerror);
-    XUngrabServer(dpy);
-  }
-
-  return 1;
-}
-
-int exitwm(Arg *arg) {
-  XCloseDisplay(dpy);
-  exit(arg->i);
-  return 1;
 }
 
 int xerror(Display *dpy, XErrorEvent *ee) {

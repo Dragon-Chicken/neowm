@@ -61,45 +61,9 @@ typedef struct Config {
   Key *keys;
 } Config;
 
-void printerr(char *errstr);
-char keysymtostring(XKeyEvent *xkey);
-int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
-int looptree(Client *c, int (*func)(Client *));
-Client *findclient(Client *c, Window win);
-int findclientpath(Client *c, Client **retc);
-int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
-
-void (*handler[LASTEvent])(XEvent*);
-void voidevent(XEvent *ev);
-void keypress(XEvent *ev);
-void maprequest(XEvent *ev);
-void unmapnotify(XEvent *ev);
-void destroynotify(XEvent *ev);
-void enternotify(XEvent *ev);
-void focusin(XEvent *ev);
-
-int focusswitch(Arg *arg);
-int resizeclient(Arg *arg);
-int sendevent(Client *c, Atom proto);
-void setfocus(Client *c);
-void manage(Window w, XWindowAttributes *wa);
-void unmanage(Window destroywin);
-int drawwindows(Client *c);
-int updateborders(Client *c);
-void setup(void);
-void setupatoms(void);
-int spawn(Arg *arg);
-int killfocused(Arg *arg);
-int exitwm(Arg *arg);
-int (*xerrorxlib)(Display *, XErrorEvent *);
-int xerror(Display *dpy, XErrorEvent *ee);
-int xerrordummy(Display *dpy, XErrorEvent *ee);
-
 Client *headc;
 Client *focused;
-
 Config conf;
-
 Display *dpy;
 Window root;
 
@@ -109,5 +73,62 @@ int sxoff, syoff;
 int swoff, shoff;
 
 //#define NWM_DEBUG
+
+
+// debug
+void printerr(char *errstr);
+void printpath(unsigned int path, int depth);
+int printbsptree(Client *c);
+
+// helpers
+char keysymtostring(XKeyEvent *xkey);
+int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
+
+// events
+void (*handler[LASTEvent])(XEvent*);
+void voidevent(XEvent *ev);
+void keypress(XEvent *ev);
+void maprequest(XEvent *ev);
+void unmapnotify(XEvent *ev);
+void destroynotify(XEvent *ev);
+void enternotify(XEvent *ev);
+void focusin(XEvent *ev);
+
+// client
+Client *createclient(void);
+void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab);
+unsigned int findpath(unsigned int path, int depth, bool dir);
+Client *findclientindir(Client *incl, int dir);
+int mapwins(Client *c);
+void manage(Window w, XWindowAttributes *wa);
+int fixchildren(Client *c);
+void unmanage(Window destroywin);
+
+// bsp
+int looptree(Client *c, int (*func)(Client *));
+Client *findclient(Client *c, Window win);
+int findclientpath(Client *c, Client **retc);
+int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
+int addtotree(Client *c, Client **newc);
+
+// keypress functions
+int focusswitch(Arg *arg);
+int resizeclient(Arg *arg);
+int spawn(Arg *arg);
+int killfocused(Arg *arg);
+int exitwm(Arg *arg);
+
+// x11
+int sendevent(Client *c, Atom proto);
+void setfocus(Client *c);
+int updateborders(Client *c);
+int drawwindows(Client *c);
+
+// others
+void setup(void);
+void setupatoms(void);
+int (*xerrorxlib)(Display *, XErrorEvent *);
+int xerror(Display *dpy, XErrorEvent *ee);
+int xerrordummy(Display *dpy, XErrorEvent *ee);
 
 #endif
