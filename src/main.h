@@ -46,7 +46,7 @@ typedef union Arg {
 typedef struct Key {
   int mod;
   KeySym keysym;
-  void (*func)(Arg *);
+  int (*func)(Arg *);
   Arg args;
 } Key;
 
@@ -78,8 +78,8 @@ void destroynotify(XEvent *ev);
 void enternotify(XEvent *ev);
 void focusin(XEvent *ev);
 
-void focusswitch(Arg *arg);
-void growclient(Arg *arg);
+int focusswitch(Arg *arg);
+int resizeclient(Arg *arg);
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
 void manage(Window w, XWindowAttributes *wa);
@@ -88,9 +88,9 @@ int drawwindows(Client *c);
 int updateborders(Client *c);
 void setup(void);
 void setupatoms(void);
-void spawn(Arg *arg);
-void killfocused(Arg *arg);
-void exitwm(Arg *arg);
+int spawn(Arg *arg);
+int killfocused(Arg *arg);
+int exitwm(Arg *arg);
 int (*xerrorxlib)(Display *, XErrorEvent *);
 int xerror(Display *dpy, XErrorEvent *ee);
 int xerrordummy(Display *dpy, XErrorEvent *ee);

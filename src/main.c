@@ -71,7 +71,7 @@ Client *createclient(void) {
   c->win = root;
   c->path = 0;
   c->depth = 0;
-  c->split = 20;
+  c->split = 50;
   c->x = 0;
   c->y = 0;
   c->w = screenw;
@@ -322,7 +322,7 @@ int mapwins(Client *c) {
   /*c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
   c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);*/
 
-  printf("mapping wins\n");
+  //printf("mapping wins\n");
 
   //printf("path: %.16b\n", c->path);
   //printf("1 << c->depth-1: %.16b\n", 1 << (c->depth - 1));
@@ -332,7 +332,7 @@ int mapwins(Client *c) {
     c->x = c->p->x;
     c->y = c->p->y;
   } else {
-    printf("no parent\n");
+    //printf("no parent\n");
     c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
     c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);
     c->x = 0 + sxoff + conf.hgaps;
@@ -666,45 +666,67 @@ Client *findclientindir(Client *incl, int dir) {
   return cl;
 }
 
-void focusswitch(Arg *arg) {
+int focusswitch(Arg *arg) {
   /*printf("focus dir: %d\n", arg->i);
   printf("focused path: %.16b or ", focused->path);
   printpath(focused->path, focused->depth);
   printf("\n");
   printf("focused depth: %d\n", focused->depth);*/
 
+  if (!focused->p) {
+    printf("focused doesn't have a parent\n");
+    return 0;
+  }
+
   focused = findclientindir(focused, arg->i);
+  XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
 
   looptree(headc, updateborders);
+  return 1;
 }
 
-void resizeclient(Arg *arg) {
-  printf("resizing client\n");
-  //printf("dir = %d\n", arg->i);
+int resizeclient(Arg *arg) {
+  int dir = arg->i;
+
+  /*printf("resizing client\n");
+  printf("dir = %d\n", dir);*/
 
   if (!focused->p) {
     printf("focused doesn't have a parent\n");
-    return;
+    return 0;
   }
-  Client *ca, *cb;
-  if (focused->p->a == focused) {
-    ca = focused;
-    cb = ca->p->b;
-    if (arg->i == 1)
-      ca->p->split += 1;
-    else
-      ca->p->split -= 1;
-  } else {
-    cb = focused;
-    ca = cb->p->a;
-    if (arg->i == 0)
-      ca->p->split += 1;
-    else
-      ca->p->split -= 1;
+
+  Client *ca = focused->p->a;
+  Client *cb = focused->p->b;
+
+  if (((dir >= 2) && (ca->x == cb->x)) ||
+      ((dir <= 1) && (ca->y == cb->y))) {
+    Client *tempfoc = focused;
+    focused = focused->p;
+    if (resizeclient(arg)) {
+      XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
+      focused = tempfoc;
+      return 1;
+    }
+    XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
+    focused = tempfoc;
+  }
+
+  if (dir >= 2)
+    dir -= 2;
+
+  ca->p->split += conf.resize_amount * ((dir * 2) - 1);
+
+  if (ca->p->split >= 90) {
+    ca->p->split = 90;
+  } else if (ca->p->split <= 10) {
+    ca->p->split = 10;
   }
 
   looptree(headc, mapwins);
   looptree(headc, drawwindows);
+  XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
+  return 1;
 }
 
 void setup(void) {
@@ -733,13 +755,13 @@ void setup(void) {
 
   // temp
   conf = (Config){
-    .vgaps = 0,
-    .hgaps = 0,
-    .bord_size = 2,
+    .vgaps = 20,
+    .hgaps = 20,
+    .bord_size = 4,
     .bord_foc_col = 0xffc4a7e7L,
     .bord_nor_col = 0xff26233aL,
-    .resize_amount = 10;
-    .keyslen = 11,
+    .resize_amount = 4,
+    .keyslen = 13,
   };
   conf.keys = malloc(sizeof(Key) * conf.keyslen);
 
@@ -769,12 +791,10 @@ void setup(void) {
   conf.keys[7] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {2}};
   conf.keys[8] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {3}};
 
-  conf.keys[9] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {0}};
-  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {1}};
-  /*conf.keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {0}};
-  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {1}};
-  conf.keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {2}};
-  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {3}};*/
+  conf.keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {2}};
+  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {1}};
+  conf.keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {0}};
+  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {3}};
 
   // grab input
   for (int i = 0; i < conf.keyslen; i++) {
@@ -828,7 +848,7 @@ void setupatoms(void) {
  *there is some posix stuff that dwm does that this code DOES NOT DO
  *god know if this is fixed ^
  *prob fixed*/
-void spawn(Arg *arg) {
+int spawn(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("spawning: %s\n", arg->s[0]);
 #endif
@@ -849,11 +869,13 @@ void spawn(Arg *arg) {
     execvp(arg->s[0], arg->s);
     exit(0); // kills child process
   }
+
+  return 1;
 }
 
-void killfocused(Arg *arg) {
+int killfocused(Arg *arg) {
   if (!focused)
-    return;
+    return 0;
 
   if (!sendevent(focused, wmatom[WMDelete])) {
     XGrabServer(dpy);
@@ -864,11 +886,14 @@ void killfocused(Arg *arg) {
     XSetErrorHandler(xerror);
     XUngrabServer(dpy);
   }
+
+  return 1;
 }
 
-void exitwm(Arg *arg) {
+int exitwm(Arg *arg) {
   XCloseDisplay(dpy);
   exit(arg->i);
+  return 1;
 }
 
 int xerror(Display *dpy, XErrorEvent *ee) {
