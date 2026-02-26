@@ -65,15 +65,17 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
 
 Client *createclient(void) {
   Client *c = (Client *)malloc(sizeof(Client));
-  c->win = root;
   c->a = NULL;
   c->b = NULL;
+  c->p = NULL;
+  c->win = root;
+  c->path = 0;
   c->depth = 0;
+  c->split = 20;
   c->x = 0;
   c->y = 0;
-  c->w = 0;
-  c->h = 0;
-  c->path = 0;
+  c->w = screenw;
+  c->h = screenh;
   return c;
 }
 
@@ -88,6 +90,7 @@ void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
   if (path) {
     a->path = b->path;
     a->depth = b->depth;
+    a->p = b->p;
   }
   if (ab) {
     a->a = b->a;
@@ -105,7 +108,7 @@ int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)
     return 0;
   }
   if (depth <= 0 || !c->a || !c->b) {
-    printf("running func\n");
+    //printf("running func\n");
     return func(c, retc);
   }
 
@@ -295,10 +298,13 @@ int addtotree(Client *c, Client **newc) {
       focused = *newc;
     printf("c->a win:%lx path:%b\n", c->a->win, c->a->path);
     printf("c->b win:%lx path:%b\n", c->b->win, c->b->path);
+    c->a->p = c;
+    c->b->p = c;
   } else {
     printf("c == root\n");
     copyclientdata(c, *newc, True, True, False);
     free(*newc);
+    c->p = NULL;
     *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
   }
   return 1;
@@ -313,40 +319,95 @@ int updateborders(Client *c) {
 }
 
 int mapwins(Client *c) {
-  c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
-  c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);
-  c->x = 0 + sxoff + conf.hgaps;
-  c->y = 0 + syoff + conf.vgaps;
+  /*c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
+  c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);*/
+
+  printf("mapping wins\n");
+
+  //printf("path: %.16b\n", c->path);
+  //printf("1 << c->depth-1: %.16b\n", 1 << (c->depth - 1));
+  if (c->p) {
+    c->w = c->p->w;
+    c->h = c->p->h;
+    c->x = c->p->x;
+    c->y = c->p->y;
+  } else {
+    printf("no parent\n");
+    c->w = screenw + swoff - (conf.hgaps*2) - (conf.bord_size*2);
+    c->h = screenh + shoff - (conf.vgaps*2) - (conf.bord_size*2);
+    c->x = 0 + sxoff + conf.hgaps;
+    c->y = 0 + syoff + conf.vgaps;
+    return 0;
+  }
+
+  /*printf("c->p->split: %d\n", c->p->split);
+
+  printf("c->w: %d\n", c->w);
+  printf("(100.0f - c->p->split)/100.0f: %f\n", (100.0 - c->p->split)/100.0);
+  printf("c->w * the above: %f\n", c->w * (100.0 - c->p->split)/100.0);*/
+
+  if ((c->path & (1 << (c->depth - 1))) == 0) {
+    if (c->depth & 1) {
+      c->w *= (100.0 - c->p->split)/100.0;
+      if (c->p->w * (100.0 - c->p->split)/100.0 > c->w)
+        c->w += 1;
+      c->w -= conf.vgaps/2 + conf.bord_size;
+
+      c->x += (c->p->w * c->p->split) / 100.0;
+      c->x += (conf.vgaps / 2) + conf.bord_size;
+    } else {
+      c->h *= (100.0 - c->p->split)/100.0;
+      if (c->p->h * (100.0 - c->p->split)/100.0 > c->h)
+        c->h += 1;
+      c->h -= conf.hgaps/2 + conf.bord_size;
+
+      c->y += (c->p->h * c->p->split) / 100.0;
+      c->y += conf.hgaps/2 + conf.bord_size;
+    }
+  } else {
+    if (c->depth & 1) {
+      c->w *= (c->p->split)/100.0;
+      c->w -= conf.vgaps/2 + conf.bord_size;
+    } else {
+      c->h *= (c->p->split)/100.0;
+      c->h -= conf.hgaps/2 + conf.bord_size;
+    }
+  }
+
+  /*printf("c->w: %d\n", c->w);
+  printf("c->h: %d\n", c->h);
+  printf("c->x: %d\n", c->x);
+  printf("c->y: %d\n", c->y);*/
 
   //XSetWindowBorder(dpy, c->win, (c == focused ? conf.bord_foc_col : conf.bord_nor_col));
 
-  if (c->win == root)
-    return 1;
+  /*if (c->win == root)
+    return 1;*/
 
-  for (int i = 0; i < c->depth; i++) {
+  //for (int i = 0; i < c->depth; i++) {
     // find size
-    if ((i & 1) == 1) {
+    /*if ((i & 1) == 1) {
       c->h /= 2;
       c->h -= conf.vgaps/2 + conf.bord_size;
     } else {
       c->w /= 2;
       c->w -= conf.hgaps/2 + conf.bord_size;
-    }
+    }*/
 
     //printf("c->path=%.8lb\n", c->path);
     //printf("c->depth=%d\n", c->depth);
     //printf("1UL << i=%.8lb\n", 1UL << i);
     
     // find pos
-    if ((c->path & (1 << i)) == 0) {
+    /*if ((c->path & (1 << i)) == 0) {
       printf("0\n");
       if ((i & 1) == 0) {
         c->x += c->w + conf.hgaps + conf.bord_size*2;
       } else {
         c->y += c->h + conf.vgaps + conf.bord_size*2;
       }
-    }
-  }
+    }*/
+  //}
   return 0;
 }
 
@@ -363,6 +424,8 @@ void manage(Window w, XWindowAttributes *wa) {
   newc->y = wa->y;
   newc->w = wa->width;
   newc->h = wa->height;
+  //newc->split = 50;
+  newc->p = headc;
 
   Atom wtype;
   if (getwinprop(newc, netatom[NetWMWindowType], &wtype, 1, XA_ATOM)) {
@@ -399,6 +462,10 @@ void manage(Window w, XWindowAttributes *wa) {
     printf("focused->depth:%d\n", focused->depth);
     newc->path = focused->path;
     newc->depth = focused->depth;
+
+    if (focused->p) {
+      newc->p = focused->p;
+    }
   }
 
   if (gototree(headc, &newc, newc->path, newc->depth, addtotree)) {
@@ -422,10 +489,12 @@ int fixchildren(Client *c) {
   if (c->a) {
     c->a->depth--;
     c->a->path = c->path | (1 << (c->a->depth - 1));
+    c->a->p = c;
   }
   if (c->b) {
     c->b->depth--;
     c->b->path = c->path & ~(1 << (c->b->depth - 1));
+    c->b->p = c;
   }
 
   return 1;
@@ -463,18 +532,20 @@ void unmanage(Window w) {
     return;
   }
 
-  Client *prevc = NULL;
+  Client *prevc = c->p;
   /*printf("c->path %lb\n", c->path);
   printf("c->depth %d\n", c->depth);
   printf("c->path >> 1 %lb\n", c->path >> 1);
   printf("c->depth - 1 %d\n", c->depth - 1);*/
-  if (!gototree(headc, &prevc, c->path, c->depth - 1, findclientpath)) {
+  /*if (!gototree(headc, &prevc, c->path, c->depth - 1, findclientpath)) {
     printf("can't find prevc\n");
     return;
-  }
+  }*/
 
-  if (!prevc)
+  if (!prevc) {
+    printf("c doesn't have parent?\n");
     return;
+  }
   /*printf("pass 0\n");
   printbsptree(headc);
   printf("prevc win:%lx id:%lb\n", prevc->win, prevc->path);*/
@@ -508,8 +579,8 @@ void unmanage(Window w) {
     copyclientdata(prevc, prevc->a, True, False, True);
   }
 
-  looptree(prevc, fixchildren);
 
+  looptree(prevc, fixchildren);
   printf("freeing c\n");
   free(c);
   printf("mapping wins (after deletion)\n");
@@ -537,6 +608,9 @@ int drawwindows(Client *c) {
 unsigned int findpath(unsigned int path, int depth, bool dir) {
   printf("finding path\n");
 
+  if (dir == 0)
+    depth = 32;
+
   if (!(depth & 1)) {
     depth--;
   }
@@ -559,6 +633,39 @@ unsigned int findpath(unsigned int path, int depth, bool dir) {
   return path;
 }
 
+Client *findclientindir(Client *incl, int dir) {
+  unsigned int destpath = 0;
+  Client *cl;
+
+  switch (dir) {
+    case 0:
+      destpath = findpath(incl->path, incl->depth, 1);
+      break;
+    case 1:
+      destpath = findpath(incl->path, incl->depth, 0);
+      break;
+    case 2:
+      destpath = findpath(incl->path >> 1, incl->depth - 1, 0);
+      destpath <<= 1;
+      destpath |= incl->path & 1;
+      break;
+    case 3:
+      destpath = findpath(incl->path >> 1, incl->depth - 1, 1);
+      destpath <<= 1;
+      destpath |= incl->path & 1;
+      break;
+  }
+
+  //printf("destpath: %.16b\n", destpath);
+
+  if (!gototree(headc, &cl, destpath, 32, findclientpath)) {
+    printf("can't find client\n");
+    return NULL;
+  }
+
+  return cl;
+}
+
 void focusswitch(Arg *arg) {
   /*printf("focus dir: %d\n", arg->i);
   printf("focused path: %.16b or ", focused->path);
@@ -566,34 +673,38 @@ void focusswitch(Arg *arg) {
   printf("\n");
   printf("focused depth: %d\n", focused->depth);*/
 
-  unsigned int destpath = 0;
-
-  switch (arg->i) {
-    case 0:
-      destpath = findpath(focused->path, focused->depth, 1);
-      break;
-    case 1:
-      destpath = findpath(focused->path, focused->depth, 0);
-      break;
-    case 2:
-      destpath = findpath(focused->path >> 1, focused->depth - 1, 0);
-      destpath <<= 1;
-      destpath |= focused->path & 1;
-      break;
-    case 3:
-      destpath = findpath(focused->path >> 1, focused->depth - 1, 1);
-      destpath <<= 1;
-      destpath |= focused->path & 1;
-      break;
-  }
-
-  printf("destpath: %.16b \n", destpath);
-
-  if (!gototree(headc, &focused, destpath, 32, findclientpath)) {
-    printf("can't find client\n");
-  }
+  focused = findclientindir(focused, arg->i);
 
   looptree(headc, updateborders);
+}
+
+void resizeclient(Arg *arg) {
+  printf("resizing client\n");
+  //printf("dir = %d\n", arg->i);
+
+  if (!focused->p) {
+    printf("focused doesn't have a parent\n");
+    return;
+  }
+  Client *ca, *cb;
+  if (focused->p->a == focused) {
+    ca = focused;
+    cb = ca->p->b;
+    if (arg->i == 1)
+      ca->p->split += 1;
+    else
+      ca->p->split -= 1;
+  } else {
+    cb = focused;
+    ca = cb->p->a;
+    if (arg->i == 0)
+      ca->p->split += 1;
+    else
+      ca->p->split -= 1;
+  }
+
+  looptree(headc, mapwins);
+  looptree(headc, drawwindows);
 }
 
 void setup(void) {
@@ -620,16 +731,16 @@ void setup(void) {
   handler[EnterNotify] = enternotify;
   handler[FocusIn] = focusin;
 
+  // temp
   conf = (Config){
-    .vgaps = 16,
-    .hgaps = 16,
-    .bord_size = 4,
+    .vgaps = 0,
+    .hgaps = 0,
+    .bord_size = 2,
     .bord_foc_col = 0xffc4a7e7L,
     .bord_nor_col = 0xff26233aL,
-    .keyslen = 9,
+    .resize_amount = 10;
+    .keyslen = 11,
   };
-
-  // temp
   conf.keys = malloc(sizeof(Key) * conf.keyslen);
 
   conf.keys[0] = (Key){Mod1Mask, XStringToKeysym("q"), exitwm, {0}};
@@ -658,15 +769,12 @@ void setup(void) {
   conf.keys[7] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {2}};
   conf.keys[8] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {3}};
 
-  /*conf.keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
-  conf.keys[6] = (Key){Mod1Mask, XStringToKeysym("l"), focusswitch, {1}};
-  conf.keys[7] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {2}};
-  conf.keys[8] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {3}};
-
-  conf.keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), growclient, {0}};
-  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), growclient, {1}};
-  conf.keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), growclient, {2}};
-  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), growclient, {3}};*/
+  conf.keys[9] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {0}};
+  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {1}};
+  /*conf.keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {0}};
+  conf.keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {1}};
+  conf.keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {2}};
+  conf.keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {3}};*/
 
   // grab input
   for (int i = 0; i < conf.keyslen; i++) {

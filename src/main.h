@@ -28,11 +28,13 @@ Atom netatom[NetLast];
 
 typedef struct Client Client;
 struct Client {
-  Window win;
   Client *a;
   Client *b;
+  Client *p;
+  Window win;
   unsigned int path;
   int depth;
+  int split;
   int x, y, w, h;
 };
 
@@ -52,9 +54,10 @@ typedef struct Config {
   int vgaps;
   int hgaps;
   int bord_size;
+  int keyslen;
+  unsigned int resize_amount;
   long bord_foc_col;
   long bord_nor_col;
-  int keyslen;
   Key *keys;
 } Config;
 
@@ -76,6 +79,7 @@ void enternotify(XEvent *ev);
 void focusin(XEvent *ev);
 
 void focusswitch(Arg *arg);
+void growclient(Arg *arg);
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
 void manage(Window w, XWindowAttributes *wa);
