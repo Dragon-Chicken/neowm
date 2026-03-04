@@ -21,6 +21,7 @@ enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
   NetWMStrutPartial,
   NetWMWindowType, NetWMWindowTypeNormal, NetWMWindowTypeDock, NetWMWindowTypePopup,
   NetWMState, NetWMStateAbove,
+  NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetDesktopNames, NetClientList,
   NetLast }; // netatom
 
 Atom wmatom[WMLast];
@@ -36,7 +37,13 @@ struct Client {
   int depth;
   int split;
   int x, y, w, h;
+  int minw, minh;
 };
+
+typedef struct Desktop {
+  Client *headc;
+  Client *focused;
+} Desktop;
 
 typedef union Arg {
   int i;
@@ -55,24 +62,35 @@ typedef struct Config {
   int hgaps;
   int bord_size;
   int keyslen;
+  int num_of_desktops;
   unsigned int resize_amount;
   long bord_foc_col;
   long bord_nor_col;
   Key *keys;
 } Config;
 
-Client *headc;
-Client *focused;
+char workspace_names[] = "1\0""2\0";
+
+Desktop *desktops;
+long deski;
+/*Client *focused;
+Client *headc;*/
+
 Config conf;
 Display *dpy;
 Window root;
+
+int workspaceswitch = 0;
+
+// for net client list ewmh...
+int totalwins = 0;
 
 int screenw, screenh;
 // ScreenXOFF, ScreenYOFF...
 int sxoff, syoff;
 int swoff, shoff;
 
-//#define NWM_DEBUG
+#define NWM_DEBUG
 
 
 // debug
@@ -100,9 +118,10 @@ void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab);
 unsigned int findpath(unsigned int path, int depth, bool dir);
 Client *findclientindir(Client *incl, int dir);
 int mapwins(Client *c);
-void manage(Window w, XWindowAttributes *wa);
+void manage(Window w);
 int fixchildren(Client *c);
 void unmanage(Window destroywin);
+void createclientlist(void);
 
 // bsp
 int looptree(Client *c, int (*func)(Client *));
@@ -111,9 +130,10 @@ int findclientpath(Client *c, Client **retc);
 int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
 int addtotree(Client *c, Client **newc);
 
-// keypress functions
+// keypress
 int focusswitch(Arg *arg);
 int resizeclient(Arg *arg);
+int focusdesktop(Arg *arg);
 int spawn(Arg *arg);
 int killfocused(Arg *arg);
 int exitwm(Arg *arg);
@@ -122,7 +142,7 @@ int exitwm(Arg *arg);
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
 int updateborders(Client *c);
-int drawwindows(Client *c);
+int drawwins(Client *c);
 
 // others
 void setup(void);
