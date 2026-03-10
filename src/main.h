@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include "config.h"
+
 
 #define WM_NAME "nwm"
 
@@ -69,7 +71,6 @@ typedef struct Config {
   long bord_nor_col;
   Key *keys;
 } Config;
-#define NWM_DEBUG
 
 
 // debug
@@ -82,7 +83,7 @@ char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
 
 // events
-void voidevent(XEvent *ev);
+void voidevent(XEvent *);
 void keypress(XEvent *ev);
 void maprequest(XEvent *ev);
 void unmapnotify(XEvent *ev);
@@ -116,7 +117,7 @@ int focusswitch(Arg *arg);
 int resizeclient(Arg *arg);
 int focusdesktop(Arg *arg);
 int spawn(Arg *arg);
-int killfocused(Arg *arg);
+int killfocused(Arg *);
 int exitwm(Arg *arg);
 
 // x11
@@ -130,6 +131,6 @@ int drawwins(Client *c);
 void setup(void);
 void setupatoms(void);
 int xerror(Display *dpy, XErrorEvent *ee);
-int xerrordummy(Display *dpy, XErrorEvent *ee);
+int xerrordummy(Display *, XErrorEvent *);
 
 #endif

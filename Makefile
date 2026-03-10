@@ -1,12 +1,16 @@
-build:
-	gcc -O0 -Wall -Wextra nwmc/server.c -o server
-	gcc -O0 -Wall -Wextra nwmc/client.c -o client
+FLAGS=-O0 -Wall -Wextra
 
-run:
-	./nwm bind "some bindings" "some args"
+build: nwm nwmc
 
-cnwm:
-	gcc -O0 -Wall -Wextra -lX11 src/*.c -o nwm
+all: nwm nwmc-test
+
+.PHONY: nwm
+nwm:
+	gcc $(FLAGS) -lpthread -lX11 src/*.c -o nwm
+
+.PHONY: nwmc
+nwmc:
+	gcc $(FLAGS) nwmc/main.c -o nwmc
 
 xephyr:
 	startx ./nwm -- /usr/bin/Xephyr -screen 1290x720 :1

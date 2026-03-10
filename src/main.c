@@ -25,6 +25,7 @@ int swoff, shoff;
 void (*handler[LASTEvent])(XEvent*);
 int (*xerrorxlib)(Display *, XErrorEvent *);
 
+//#define NWM_DEBUG
 
 // debug
 void printerr(char *errstr) {
@@ -119,6 +120,7 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
 
 // events
 void voidevent(XEvent *ev) {
+  (void)ev;
 #ifdef NWM_DEBUG
   printf("(void event)\n");
 #endif
@@ -482,7 +484,7 @@ void manage(Window w) {
     newc->floating = True;
     drawwins(newc);
 
-    printll(desktops[deski].floating);
+    //printll(desktops[deski].floating);
     return;
   }
 
@@ -493,7 +495,7 @@ void manage(Window w) {
     newc->path = 0;
     newc->depth = 0;
   } else {
-    printf("focused->win: %lx\n", focused->win);
+    //printf("focused->win: %lx\n", focused->win);
     newc->path = focused->path;
     newc->depth = focused->depth;
 
@@ -557,7 +559,7 @@ void unmanage(Window w) {
     return;
   }
 
-  printf("w: %lx\n", w);
+  //printf("w: %lx\n", w);
 
   Client *c = NULL;
   Client *headc = NULL;
@@ -567,9 +569,9 @@ void unmanage(Window w) {
   for (dt = 0; dt < conf->num_of_desktops; dt++) {
     c = findclient(desktops[dt].headc, w);
     if (c) {
-      printf("found client\n");
+      /*printf("found client\n");
       printf("dt: %d\n", dt);
-      printf("deski: %ld\n", deski);
+      printf("deski: %ld\n", deski);*/
       headc = desktops[dt].headc;
       focused = desktops[dt].focused;
       break;
@@ -577,15 +579,13 @@ void unmanage(Window w) {
   }
 
   if (!c) {
-    printf("c is null\n");
+    //printf("c is null\n");
     return;
   }
 
   // to delete all clients
   if (c == headc) {
-    printf("deleted head\n");
     free(desktops[dt].headc);
-    printf("head\n");
     desktops[dt].headc = createclient();
     desktops[dt].focused = NULL;
     setfocus(desktops[dt].focused);
@@ -628,7 +628,7 @@ void unmanage(Window w) {
   if (c == focused)
     setfocus(prevc);
 
-  printf("freeing c\n");
+  //printf("freeing c\n");
   free(c);
 #ifdef NWM_DEBUG
   printf("mapping wins (after deletion)\n");
@@ -942,6 +942,7 @@ int spawn(Arg *arg) {
 }
 
 int killfocused(Arg *arg) {
+  (void)arg;
 #ifdef NWM_DEBUG
   printf("killfocused\n");
 #endif
@@ -966,6 +967,8 @@ int exitwm(Arg *arg) {
   printf("exitwm\n");
 #endif
   XCloseDisplay(dpy);
+  killserver();
+
   exit(arg->i);
   return 1;
 }
@@ -1009,7 +1012,7 @@ void setfocus(Client *c) {
   if (!c || c->win == root)
     return;
 
-  printf("win: %lx\n", c->win);
+  //printf("win: %lx\n", c->win);
   if (c->floating == False) {
     desktops[deski].tilefoc = c;
   } else {
@@ -1095,7 +1098,8 @@ void setup(void) {
   //conf = parseconf(NULL, 0);
 
   // temp
-  /*conf = (Config){
+  conf = malloc(sizeof(Config));
+  *conf = (Config){
     .vgaps = 20,
     .hgaps = 20,
     .bord_size = 4,
@@ -1139,7 +1143,9 @@ void setup(void) {
   conf->keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {3}};
 
   conf->keys[13] = (Key){Mod1Mask, XStringToKeysym("1"), focusdesktop, {0}};
-  conf->keys[14] = (Key){Mod1Mask, XStringToKeysym("2"), focusdesktop, {1}};*/
+  conf->keys[14] = (Key){Mod1Mask, XStringToKeysym("2"), focusdesktop, {1}};
+
+  startserver();
 
   // desktops
   if (conf->num_of_desktops < 1)
@@ -1168,10 +1174,11 @@ void setup(void) {
   }
 
   // startup script
-  char **arg = malloc(sizeof(char *) * 2);
+  arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/startup";
   arg[1] = NULL;
   spawn(&(Arg){.s = arg}); // temp
+  free(arg);
 }
 
 void setupatoms(void) {
@@ -1216,8 +1223,8 @@ void setupatoms(void) {
 
   XChangeProperty(dpy, root, netatom[NetNumberOfDesktops], XA_CARDINAL, 32,
       PropModeReplace, (const unsigned char *)&conf->num_of_desktops, 1);
-  /*XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
-      PropModeReplace, (const unsigned char *)&deski, 1);*/
+  XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
+      PropModeReplace, (const unsigned char *)&deski, 1);
 
   /*char workspace_names[] = "test1\0test2\0";
   int names_len = sizeof(workspace_names);*/
@@ -1244,19 +1251,22 @@ int xerror(Display *dpy, XErrorEvent *ee) {
 }
 
 int xerrordummy(Display *dpy, XErrorEvent *ee) {
+  (void)dpy;
+  (void)ee;
 #ifdef NWM_DEBUG
   printf("xerrordummy\n");
 #endif
   return 0;
 }
 
-int main() {
+int main(void) {
   XEvent ev;
 
   if (!(dpy = XOpenDisplay(NULL))) {
     printerr("failed to open display\n");
     exitwm(0);
   }
+
   //printf("Default screen: %d\nScreen width: %d\nScreen height: %d\n", screen, screenw, screenh);
 
   setup();
@@ -1269,10 +1279,10 @@ int main() {
     printf("\nevent rec of type %d ", ev.type);
 #endif
 
-      handler[ev.type](&ev);
-    }
-
-    printerr("exiting with no errors\n");
-    exitwm(0);
-    return 0;
+    handler[ev.type](&ev);
   }
+
+  printerr("exiting with no errors\n");
+  exitwm(0);
+  return 0;
+}

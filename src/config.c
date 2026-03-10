@@ -1,23 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#include <signal.h>
+#include "main.h"
+#include "config.h"
 
 #define SOCK_PATH "/tmp/nwmc_socket"
 
 int s, s2;
-
-void sigtermhandler(int sig) {
-  printf("exiting...\n");
-  close(s2);
-  close(s);
-
-  _exit(sig);
-}
+pthread_t server_thread;
 
 void sendret(int s, int *done, char ret) {
   char str[2] = {ret, '\0'};
@@ -58,8 +45,8 @@ int getdata(int s, int *done, int strlen) {
   return n;
 }
 
-int main(void) {
-  signal(SIGINT, sigtermhandler);
+void *serverthread(void *arg) {
+  (void)arg;
 
   int len;
   struct sockaddr_un remote, local = {
@@ -116,5 +103,19 @@ int main(void) {
     printf("closing connection\n");
     close(s2);
   }
+}
+
+int startserver(void) {
+  pthread_create(&server_thread, NULL, serverthread, NULL);
+  close(s2);
+  close(s);
+  return 0;
+}
+
+int killserver(void) {
+  printf("killing server\n");
+  pthread_cancel(server_thread);
+  pthread_join(server_thread, NULL);
+  printf("server killed\n");
   return 0;
 }

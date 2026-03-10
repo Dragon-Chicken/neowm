@@ -6,7 +6,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define SOCK_PATH "nwmc_socket"
+#define SOCK_PATH "/tmp/nwmc_socket"
 
 void sendsize(int s, char *str) {
   printf("sendsize\n");
