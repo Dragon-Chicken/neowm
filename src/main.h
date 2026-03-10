@@ -1,5 +1,5 @@
-#ifndef NWM_MAIN_H
-#define NWM_MAIN_H
+#ifndef NWM_MAIN
+#define NWM_MAIN
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -24,9 +24,6 @@ enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
   NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetDesktopNames, NetClientList,
   NetLast }; // netatom
 
-Atom wmatom[WMLast];
-Atom netatom[NetLast];
-
 typedef struct Client Client;
 struct Client {
   Client *a;
@@ -38,11 +35,15 @@ struct Client {
   int split;
   int x, y, w, h;
   int minw, minh;
+  int maxw, maxh;
+  Bool floating;
 };
 
 typedef struct Desktop {
   Client *headc;
+  Client *floating;
   Client *focused;
+  Client *tilefoc;
 } Desktop;
 
 typedef union Arg {
@@ -68,28 +69,6 @@ typedef struct Config {
   long bord_nor_col;
   Key *keys;
 } Config;
-
-char workspace_names[] = "1\0""2\0";
-
-Desktop *desktops;
-long deski;
-/*Client *focused;
-Client *headc;*/
-
-Config conf;
-Display *dpy;
-Window root;
-
-int workspaceswitch = 0;
-
-// for net client list ewmh...
-int totalwins = 0;
-
-int screenw, screenh;
-// ScreenXOFF, ScreenYOFF...
-int sxoff, syoff;
-int swoff, shoff;
-
 #define NWM_DEBUG
 
 
@@ -103,7 +82,6 @@ char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
 
 // events
-void (*handler[LASTEvent])(XEvent*);
 void voidevent(XEvent *ev);
 void keypress(XEvent *ev);
 void maprequest(XEvent *ev);
@@ -123,6 +101,9 @@ int fixchildren(Client *c);
 void unmanage(Window destroywin);
 void createclientlist(void);
 
+// linked list
+Client *findclientll(Client *c, Window win);
+
 // bsp
 int looptree(Client *c, int (*func)(Client *));
 Client *findclient(Client *c, Window win);
@@ -141,13 +122,13 @@ int exitwm(Arg *arg);
 // x11
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
+void updatebordersll(Client *c);
 int updateborders(Client *c);
 int drawwins(Client *c);
 
 // others
 void setup(void);
 void setupatoms(void);
-int (*xerrorxlib)(Display *, XErrorEvent *);
 int xerror(Display *dpy, XErrorEvent *ee);
 int xerrordummy(Display *dpy, XErrorEvent *ee);
 
