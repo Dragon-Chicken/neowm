@@ -13,3 +13,5 @@ xephyr:
 
 clean:
 	rm nwm
+	rm client
+	rm server
