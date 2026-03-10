@@ -1,4 +1,3 @@
 nwm
-/server
-/client
-/nwmc/
+server
+client
