@@ -11,6 +11,8 @@
 //#include <signal.h>
 #include <pthread.h>
 
+#include "main.h"
+
 int startserver(void);
 int killserver(void);
 

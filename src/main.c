@@ -157,10 +157,10 @@ void keypress(XEvent *ev) {
   }
 
   // only here to make sure it's always possible to exit wm
-  if (keysymtostring(xkey) == 'q' && xkey->state == Mod1Mask) {
+  /*if (keysymtostring(xkey) == 'q' && xkey->state == Mod1Mask) {
     fprintf(stderr, "%s: exiting with no errors\n", WM_NAME);
     exitwm(0);
-  }
+  }*/
 }
 
 void maprequest(XEvent *ev) {
@@ -1116,8 +1116,8 @@ void setup(void) {
 
   // temp
   conf = malloc(sizeof(Config));
-  *conf = (Config){
-    .vgaps = 100,
+  /**conf = (Config){
+    .vgaps = 20,
     .hgaps = 20,
     .bord_size = 4,
     .bord_foc_col = 0xffc4a7e7L,
@@ -1125,12 +1125,32 @@ void setup(void) {
     .num_of_desktops = 2,
     .resize_amount = 4,
     .keyslen = 15,
+  };*/
+  *conf = (Config){
+    .vgaps = 0,
+    .hgaps = 0,
+    .bord_size = 0,
+    .bord_foc_col = 0,
+    .bord_nor_col = 0,
+    .num_of_desktops = 2,
+    .resize_amount = 0,
+    .keyslen = 1,
   };
+  conf->keys = NULL;
+
+  char **arg;
+  arg = malloc(sizeof(char *) * 2);
+  arg[0] = "st";
+  arg[1] = NULL;
   conf->keys = malloc(sizeof(Key) * conf->keyslen);
+  conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}};
+
+
+  /*conf->keys = malloc(sizeof(Key) * conf->keyslen);
 
   conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("q"), exitwm, {0}};
 
-  char **arg = malloc(sizeof(char *) * 2);
+  arg = malloc(sizeof(char *) * 2);
   arg[0] = "st";
   arg[1] = NULL;
   conf->keys[1] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}};
@@ -1160,7 +1180,7 @@ void setup(void) {
   conf->keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {3}};
 
   conf->keys[13] = (Key){Mod1Mask, XStringToKeysym("1"), focusdesktop, {0}};
-  conf->keys[14] = (Key){Mod1Mask, XStringToKeysym("2"), focusdesktop, {1}};
+  conf->keys[14] = (Key){Mod1Mask, XStringToKeysym("2"), focusdesktop, {1}};*/
 
   startserver();
 
@@ -1185,14 +1205,22 @@ void setup(void) {
   //conf->workspace_names = "test1\0test2\0";
 
   // grab input
-  for (int i = 0; i < conf->keyslen; i++) {
-    XGrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod,
-          root, True, GrabModeAsync, GrabModeAsync);
+  if (conf->keys) {
+    for (int i = 0; i < conf->keyslen; i++) {
+      XGrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod,
+            root, True, GrabModeAsync, GrabModeAsync);
+    }
   }
 
   // startup script
   arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/startup";
+  arg[1] = NULL;
+  spawn(&(Arg){.s = arg}); // temp
+  free(arg);
+
+  arg = malloc(sizeof(char *) * 2);
+  arg[0] = "/home/ethan/neowm/nwm.conf";
   arg[1] = NULL;
   spawn(&(Arg){.s = arg}); // temp
   free(arg);

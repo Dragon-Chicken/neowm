@@ -10,8 +10,6 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include "config.h"
-
 
 #define WM_NAME "nwm"
 
@@ -81,6 +79,7 @@ int printbsptree(Client *c);
 // helpers
 char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
+void flushx11(void);
 
 // events
 void voidevent(XEvent *);

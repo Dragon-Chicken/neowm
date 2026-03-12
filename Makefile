@@ -10,12 +10,11 @@ nwm:
 
 .PHONY: nwmc
 nwmc:
-	gcc $(FLAGS) nwmc/main.c -o nwmc
+	gcc $(FLAGS) src/nwmc/*.c -o nwmc
 
 xephyr:
 	startx ./nwm -- /usr/bin/Xephyr -screen 1290x720 :1
 
 clean:
 	rm nwm
-	rm client
-	rm server
+	rm nwmc
