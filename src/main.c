@@ -1,4 +1,5 @@
 #include "main.h"
+#include "config.h"
 
 Atom wmatom[WMLast];
 Atom netatom[NetLast];
@@ -25,7 +26,7 @@ int swoff, shoff;
 void (*handler[LASTEvent])(XEvent*);
 int (*xerrorxlib)(Display *, XErrorEvent *);
 
-//#define NWM_DEBUG
+#define NWM_DEBUG
 
 // debug
 void printerr(char *errstr) {
@@ -115,6 +116,20 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
     return 1;
   }
   return 0;
+}
+
+void flushx11(void) {
+  looptree(desktops[deski].headc, mapwins);
+  looptree(desktops[deski].headc, drawwins);
+  looptree(desktops[deski].headc, updateborders);
+  updatebordersll(desktops[deski].floating);
+
+  for (int i = 0; i < conf->keyslen; i++) {
+    XGrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod,
+          root, True, GrabModeAsync, GrabModeAsync);
+  }
+
+  XSync(dpy, False);
 }
 
 
@@ -360,26 +375,26 @@ int mapwins(Client *c) {
       c->w *= (100.0 - c->p->split)/100.0;
       if (c->p->w * (100.0 - c->p->split)/100.0 > c->w)
         c->w += 1;
-      c->w -= conf->vgaps/2 + conf->bord_size;
+      c->w -= conf->hgaps/2 + conf->bord_size;
 
       c->x += (c->p->w * c->p->split) / 100.0;
-      c->x += (conf->vgaps / 2) + conf->bord_size;
+      c->x += (conf->hgaps / 2) + conf->bord_size;
     } else {
       c->h *= (100.0 - c->p->split)/100.0;
       if (c->p->h * (100.0 - c->p->split)/100.0 > c->h)
         c->h += 1;
-      c->h -= conf->hgaps/2 + conf->bord_size;
+      c->h -= conf->vgaps/2 + conf->bord_size;
 
       c->y += (c->p->h * c->p->split) / 100.0;
-      c->y += conf->hgaps/2 + conf->bord_size;
+      c->y += conf->vgaps/2 + conf->bord_size;
     }
   } else {
     if (c->depth & 1) {
       c->w *= (c->p->split)/100.0;
-      c->w -= conf->vgaps/2 + conf->bord_size;
+      c->w -= conf->hgaps/2 + conf->bord_size;
     } else {
       c->h *= (c->p->split)/100.0;
-      c->h -= conf->hgaps/2 + conf->bord_size;
+      c->h -= conf->vgaps/2 + conf->bord_size;
     }
   }
 
@@ -1031,6 +1046,7 @@ void setfocus(Client *c) {
 
 void updatebordersll(Client *c) {
   while (c != NULL) {
+    XSetWindowBorderWidth(dpy, c->win, conf->bord_size);
     XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
     c = c->a;
   }
@@ -1043,6 +1059,7 @@ int updateborders(Client *c) {
   if (!c)
     return 0;
 
+  XSetWindowBorderWidth(dpy, c->win, conf->bord_size);
   XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
   return 1;
 }
@@ -1100,7 +1117,7 @@ void setup(void) {
   // temp
   conf = malloc(sizeof(Config));
   *conf = (Config){
-    .vgaps = 20,
+    .vgaps = 100,
     .hgaps = 20,
     .bord_size = 4,
     .bord_foc_col = 0xffc4a7e7L,
@@ -1258,6 +1275,7 @@ int xerrordummy(Display *dpy, XErrorEvent *ee) {
 #endif
   return 0;
 }
+
 
 int main(void) {
   XEvent ev;
