@@ -4,8 +4,6 @@
 Atom wmatom[WMLast];
 Atom netatom[NetLast];
 
-char workspace_names[] = "1\0""2\0";
-
 Desktop *desktops;
 long deski;
 
@@ -15,11 +13,11 @@ Window root;
 
 int workspaceswitch = 0;
 
-// for net client list ewmh...
+// for net client list ewmh
 int totalwins = 0;
 
 int screenw, screenh;
-// ScreenXOFF, ScreenYOFF...
+// for bars and stuff
 int sxoff, syoff;
 int swoff, shoff;
 
@@ -118,17 +116,30 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
   return 0;
 }
 
-void flushx11(void) {
+void remapwins(void) {
   looptree(desktops[deski].headc, mapwins);
   looptree(desktops[deski].headc, drawwins);
   looptree(desktops[deski].headc, updateborders);
   updatebordersll(desktops[deski].floating);
+}
 
+void rebindkeys(void) {
   for (int i = 0; i < conf->keyslen; i++) {
     XGrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod,
           root, True, GrabModeAsync, GrabModeAsync);
   }
+}
 
+void unbindkeys(void) {
+  for (int i = 0; i < conf->keyslen; i++) {
+    XUngrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod, root);
+  }
+}
+
+void flushx11(void) {
+  printf("flushx11\n");
+  remapwins();
+  rebindkeys();
   XSync(dpy, False);
 }
 
@@ -298,16 +309,16 @@ unsigned int findpath(unsigned int path, int depth, bool dir) {
     depth--;
   }
   for (int i = depth - 1; i >= 0; i -= 2) {
-    printf("path: %.8b\n", path);
+    /*printf("path: %.8b\n", path);
     printf("i: %d\n", i);
-    printf("1 << i: %.8b\n", 1 << i);
+    printf("1 << i: %.8b\n", 1 << i);*/
     if ((path >> i) & 1) {
-      printf("path at i 1\n");
+      //printf("path at i 1\n");
       path = path & ~(1 << i);
       if (!dir)
         break;
     } else {
-      printf("path at i 0\n");
+      //printf("path at i 0\n");
       path = path | (1 << i);
       if (dir)
         break;
@@ -378,7 +389,7 @@ int mapwins(Client *c) {
       c->w -= conf->hgaps/2 + conf->bord_size;
 
       c->x += (c->p->w * c->p->split) / 100.0;
-      c->x += (conf->hgaps / 2) + conf->bord_size;
+      c->x += conf->hgaps/2 + conf->bord_size;
     } else {
       c->h *= (100.0 - c->p->split)/100.0;
       if (c->p->h * (100.0 - c->p->split)/100.0 > c->h)
@@ -400,7 +411,7 @@ int mapwins(Client *c) {
 
   if (c->w <= 0 || c->h <= 0) {
     printerr("width/height too small\n");
-    int ret = 0;
+    int ret = 1;
     exitwm((Arg *)&ret);
   }
   return 1;
@@ -833,7 +844,7 @@ int resizeclient(Arg *arg) {
   Client *focused = desktops[deski].focused;
 
   //printf("resizing client\n");
-  printf("dir = %d\n", dir);
+  //printf("dir = %d\n", dir);
 
   if (!focused->p) {
 #ifdef NWM_DEBUG
@@ -848,10 +859,10 @@ int resizeclient(Arg *arg) {
   if (!ca || !cb)
     return 0;
 
-  printf("ca->x = %d\n", ca->x);
+  /*printf("ca->x = %d\n", ca->x);
   printf("ca->y = %d\n", ca->y);
   printf("cb->x = %d\n", cb->x);
-  printf("cb->y = %d\n", cb->y);
+  printf("cb->y = %d\n", cb->y);*/
 
   if (((dir >= 2) && (ca->x == cb->x)) ||
       ((dir <= 1) && (ca->y == cb->y))) {
@@ -895,6 +906,11 @@ int focusdesktop(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("switching desktops...\n");
 #endif
+
+  if (arg->i > conf->num_of_desktops) {
+    printerr("can't focus desktop (out of range)\n");
+    return 1;
+  }
 
   XGrabServer(dpy);
   workspaceswitch = 1;
@@ -984,7 +1000,10 @@ int exitwm(Arg *arg) {
   XCloseDisplay(dpy);
   killserver();
 
-  exit(arg->i);
+  if (arg)
+    exit(arg->i);
+
+  exit(0);
   return 1;
 }
 
@@ -1100,9 +1119,6 @@ void setup(void) {
   // https://tronche.com/gui/x/xlib/events/processing-overview.html
   XSelectInput(dpy, root, SubstructureRedirectMask|SubstructureNotifyMask|FocusChangeMask|EnterWindowMask|PropertyChangeMask);
 
-  //desktops.headc = createclient();
-  //desktops[deski].focused = NULL;
-
   for (int i = 0; i < LASTEvent; i++)
     handler[i] = voidevent;
   handler[KeyPress] = keypress;
@@ -1112,9 +1128,6 @@ void setup(void) {
   handler[EnterNotify] = enternotify;
   handler[FocusIn] = focusin;
 
-  //conf = parseconf(NULL, 0);
-
-  // temp
   conf = malloc(sizeof(Config));
   /**conf = (Config){
     .vgaps = 20,
@@ -1129,11 +1142,11 @@ void setup(void) {
   *conf = (Config){
     .vgaps = 0,
     .hgaps = 0,
-    .bord_size = 0,
-    .bord_foc_col = 0,
-    .bord_nor_col = 0,
-    .num_of_desktops = 2,
-    .resize_amount = 0,
+    .bord_size = 2,
+    .bord_foc_col = 0xffeeeeee,
+    .bord_nor_col = 0xff333333,
+    .num_of_desktops = 5,
+    .resize_amount = 5,
     .keyslen = 1,
   };
   conf->keys = NULL;
@@ -1144,7 +1157,6 @@ void setup(void) {
   arg[1] = NULL;
   conf->keys = malloc(sizeof(Key) * conf->keyslen);
   conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}};
-
 
   /*conf->keys = malloc(sizeof(Key) * conf->keyslen);
 
@@ -1191,9 +1203,6 @@ void setup(void) {
   desktops = malloc(conf->num_of_desktops * sizeof(Desktop));
   deski = 0;
 
-  printf("sizeof desktop %ld\n", sizeof(Desktop));
-  printf("sizeof client %ld\n", sizeof(Client));
-
   for (int i = 0; i < conf->num_of_desktops; i++) {
     desktops[i].headc = createclient();
     desktops[i].floating = NULL;
@@ -1201,8 +1210,9 @@ void setup(void) {
     desktops[i].tilefoc = NULL;
   }
 
-  //conf->workspace_names = malloc(sizeof(char) * 15);
-  //conf->workspace_names = "test1\0test2\0";
+  conf->desktop_names = "1\0""2\0";
+  conf->desktop_names_len = 4;
+  // you can't just do sizeof or strlen on the workspace names string
 
   // grab input
   if (conf->keys) {
@@ -1216,13 +1226,13 @@ void setup(void) {
   arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/startup";
   arg[1] = NULL;
-  spawn(&(Arg){.s = arg}); // temp
+  spawn(&(Arg){.s = arg});
   free(arg);
 
   arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/nwm.conf";
   arg[1] = NULL;
-  spawn(&(Arg){.s = arg}); // temp
+  spawn(&(Arg){.s = arg});
   free(arg);
 }
 
@@ -1271,10 +1281,8 @@ void setupatoms(void) {
   XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
       PropModeReplace, (const unsigned char *)&deski, 1);
 
-  /*char workspace_names[] = "test1\0test2\0";
-  int names_len = sizeof(workspace_names);*/
   XChangeProperty(dpy, root, netatom[NetDesktopNames], utf8string, 8,
-      PropModeReplace, (const unsigned char *)workspace_names, sizeof(workspace_names));
+      PropModeReplace, (const unsigned char *)conf->desktop_names, conf->desktop_names_len);
 
   XChangeProperty(dpy, root, netatom[NetSupported], XA_ATOM, 32,
       PropModeReplace, (unsigned char *)netatom, NetLast);
@@ -1304,6 +1312,27 @@ int xerrordummy(Display *dpy, XErrorEvent *ee) {
   return 0;
 }
 
+int xerrorstart(Display *dpy, XErrorEvent *ee) {
+  (void)dpy;
+  (void)ee;
+#ifdef NWM_DEBUG
+  printf("xerrorstart\n");
+#endif
+  printerr("another window manager is running\n");
+
+  // can't use exitwm because it tries to close the display
+  exit(0);
+}
+
+void checkotherwm(void) {
+  xerrorxlib = XSetErrorHandler(xerrorstart);
+  // do something that will cause an error if a wm is running
+  XSelectInput(dpy, DefaultRootWindow(dpy), SubstructureRedirectMask);
+  XSync(dpy, False);
+  XSetErrorHandler(xerrorxlib);
+  XSync(dpy, False);
+}
+
 
 int main(void) {
   XEvent ev;
@@ -1314,6 +1343,8 @@ int main(void) {
   }
 
   //printf("Default screen: %d\nScreen width: %d\nScreen height: %d\n", screen, screenw, screenh);
+
+  checkotherwm();
 
   setup();
   setupatoms();

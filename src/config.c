@@ -1,7 +1,18 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <pthread.h>
+
 #include "config.h"
+#include "main.h"
 
 #define SOCK_PATH "/tmp/nwmc_socket"
 
+// xmacro btw
 #define CONFIG_COMMANDS \
     TOK(vertical_gaps) \
     TOK(horizontal_gaps) \
@@ -20,7 +31,7 @@ CONFIG_COMMANDS
 } Token;
 
 int s, s2;
-pthread_t server_thread;
+pthread_t server_thread = 0;
 extern Config *conf;
 
 void sendret(int s, int *done, char ret) {
@@ -52,8 +63,8 @@ int getsize(int s, int *done) {
 }
 
 int getdata(int s, int *done, int strlen, char **cmd) {
-  printf("getdata\n");
-  printf("strlen = %d\n", strlen);
+  //printf("getdata\n");
+  //printf("strlen = %d\n", strlen);
   char *str = malloc(sizeof(char) * strlen);
   int n;
   if ((n = recv(s, str, strlen, 0)) <= 0) {
@@ -62,7 +73,7 @@ int getdata(int s, int *done, int strlen, char **cmd) {
     *done = 1;
   }
   str[n] = '\0';
-  printf("[%s]\n", str);
+  //printf("[%s]\n", str);
 
   *cmd = str;
 
@@ -162,9 +173,10 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   int (*func)(Arg *) = NULL;
   Arg arg = {0};
 
+  // get the keybinds (super shfit q, alt enter, etc)
   char *strptr = splitstring(keybind, " \t\n\r");
   while (strptr != NULL) {
-    printf("[%s]\n", strptr);
+    //printf("[%s]\n", strptr);
     if (strcmp(strptr, "alt") == 0) {
       mod |= Mod1Mask;
     } else if (strcmp(strptr, "numlock") == 0) {
@@ -186,8 +198,9 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     strptr = splitstring(NULL, " \t\n\r");
   }
   
-  printf("cmd = [%s]\n", cmd);
+  //printf("cmd = [%s]\n", cmd);
 
+  // get the command (spawn, exitwm, kill_window, etc)
   if (strcmp(cmd, "spawn") == 0) {
     func = spawn;
   } else if (strcmp(cmd, "exit") == 0) {
@@ -201,13 +214,14 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   } else if (strcmp(cmd, "switch_desktop") == 0) {
     func = focusdesktop;
   } else {
-    printf("set none\n");
+    //printf("set none\n");
   }
 
-  printf("arg len = %d\n", splitlen(args, " \t\n\r"));
+  //printf("arg len = %d\n", splitlen(args, " \t\n\r"));
 
+  // spawn is the only case with more than one argument
   if (func != spawn) {
-    printf("is not spawn\n");
+    //printf("is not spawn\n");
     arg.i = strtol(args, NULL, 10);
   } else {
     int argslen = splitlen(args, " \t\n\r");
@@ -215,8 +229,9 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
 
     strptr = splitstring(args, " \t\n\r");
     for (int i = 0; i < argslen; i++) {
-      printf("[%s]\n", strptr);
+      //printf("[%s]\n", strptr);
 
+      // allocates memory because "args" may be freed
       int strptrlen = strlen(strptr);
       arg.s[i] = malloc(sizeof(char *) * (strptrlen + 1));
       memcpy(arg.s[i], strptr, strptrlen);
@@ -226,6 +241,7 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     }
   }
 
+  // something went wrong if any of these are 0
   if (mod == 0) {
     printf("mod == 0\n");
   }
@@ -241,7 +257,7 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     return (Key){0, 0, NULL, {0}};
   }
 
-  printf("#### token made ####\n");
+  //printf("#### token made ####\n");
 
   return (Key){mod, keysym, func, arg};
 }
@@ -250,9 +266,12 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
   int ret = 1;
 
   if (*token != tok_none && *token != tok_bind) {
+    // token will be parsed correctly
     ret = 0;
   }
 
+  // handle the token types
+  // (none, a keybind, or a setting)
   if (*token == tok_none) {
 #define TOK(name) \
     if (strcmp(str, #name) == 0) { \
@@ -260,33 +279,40 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     }
     CONFIG_COMMANDS
 #undef TOK
-    printerr("invalid input\n");
-    return 3;
+    
+    // the above should have set the right token
+    // if it couldn't get it then the token is invalid
+    if (*token == tok_none) {
+      printerr("invalid input\n");
+      return 3;
+    }
   } else if (*token == tok_bind) {
-    //printf("%s\n", str);
+    // first time make a keybind, then cmd, then args
     if (*keybind) {
       if (*cmd) {
         *args = str;
-        Key *oldkeys = conf->keys;
+        
+        // have to expand the array...
+        // NOTE: I should prob make this a dynamic array
         conf->keyslen++;
+        Key *oldkeys = conf->keys;
         conf->keys = malloc(sizeof(Key) * conf->keyslen);
-        if (conf->keys) {
+        if (oldkeys)
           memcpy(conf->keys, oldkeys, sizeof(Key) * conf->keyslen-1);
-        } else {
-          printerr("FAILED TO ALLOCATE MEMORY FOR KEYBIND\n");
-          exitwm(NULL);
-        }
-        printf("keybind: [%s]\n", *keybind);
-        printf("cmd: [%s]\n", *cmd);
-        printf("args: [%s]\n", *args);
+
+        // make and add new Key to the end
         conf->keys[conf->keyslen - 1] = makekeybind(*keybind, *cmd, *args);
+
+        // make sure the key was valid
         if (conf->keys[conf->keyslen - 1].func == NULL) {
           printerr("invalid key\n");
           free(conf->keys);
           conf->keys = oldkeys;
+          conf->keyslen--;
           ret = 4;
         } else {
-          free(oldkeys);
+          if (oldkeys)
+            free(oldkeys);
           ret = 0;
         }
 
@@ -299,8 +325,20 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
 
         flushx11();
       } else *cmd = str;
-    } else *keybind = str;
+    } else {
+      // clear bindings
+      if (strcmp(str, "clear") == 0) {
+        printf("suc\n");
+        free(conf->keys);
+        conf->keys = NULL;
+        conf->keyslen = 0;
+        ret = 0;
+      } else {
+        *keybind = str;
+      }
+    }
   } else {
+    // strtol returns 0 if it fails to find a number
     switch (*token) {
       case tok_vertical_gaps:
         conf->vgaps = strtol(str, NULL, 10);
@@ -330,10 +368,13 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     }
   }
 
+  // if it's not a bind then it's ok to free this memory
   if (*token != tok_bind) {
     free(str);
   }
 
+  // if there was no error and this isn't a keybind then
+  // flush (refresh) x11
   if (ret == 0 && *token != tok_bind) {
     flushx11();
   }
@@ -352,9 +393,13 @@ int handleconnection(void) {
 
   int issize = 1;
   int size = 0;
-  int done = 0;
   int ret = 1;
+
+  // request data till the client sends an empty message or an error
+  int done = 0;
   do {
+    // first client sends size of message
+    // then sends the message
     if (issize == 1) {
       size = getsize(s2, &done) + 1;
       if (size == 1) {
@@ -363,14 +408,17 @@ int handleconnection(void) {
       issize = 0;
     } else {
       int datasize = getdata(s2, &done, size, &str);
-      /*printf("size = %d\n", size);
-      printf("datasize = %d\n", datasize);*/
+      // if the datasize is not what the client sent before
+      // tell client to send the data again
       if (datasize != size && datasize != -1) {
         sendret(s2, &done, 2);
         free(str);
       } else {
         sendret(s2, &done, 1);
         issize = 1;
+        // if this condition is true that means the client is sending too many arguments
+        // so set the return value to 2 (too many arguments)
+        // and also don't bother parsing the data
         if (ret == 0 || ret == 2) {
           ret = 2;
           token = tok_none;
@@ -393,6 +441,7 @@ void *serverthread(void *arg) {
     .sun_family = AF_UNIX,
   };
 
+  // create the socket
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(1);
@@ -411,19 +460,19 @@ void *serverthread(void *arg) {
     exit(1);
   }
 
+  // handle clients
   for(;;) {
-    printf("Waiting for a connection...\n");
+    // wait for client connection
+    //printf("Waiting for a connection...\n");
     socklen_t slen = sizeof(remote);
     if ((s2 = accept(s, (struct sockaddr *)&remote, &slen)) == -1) {
       perror("accept");
       exit(1);
     }
-
-    printf("Connected.\n");
-
+    // handle client connection and
+    // send return value back to the nwmc client
     sendret(s2, NULL, handleconnection() + 1);
-
-    printf("closing connection\n");
+    // close connection
     close(s2);
   }
 }
@@ -436,9 +485,10 @@ int startserver(void) {
 }
 
 int killserver(void) {
-  printf("killing server\n");
+  if (!server_thread) {
+    return 0;
+  }
   pthread_cancel(server_thread);
   pthread_join(server_thread, NULL);
-  printf("server killed\n");
   return 0;
 }

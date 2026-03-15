@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <signal.h>
 
-
 #define WM_NAME "nwm"
 
 #define LENGTH(X) (int)(sizeof(X) / sizeof(X[0]))
@@ -32,7 +31,7 @@ struct Client {
   Window win;
   unsigned int path;
   int depth;
-  int split;
+  int split; // change this to float
   int x, y, w, h;
   int minw, minh;
   int maxw, maxh;
@@ -67,6 +66,8 @@ typedef struct Config {
   unsigned int resize_amount;
   long bord_foc_col;
   long bord_nor_col;
+  int desktop_names_len;
+  char *desktop_names;
   Key *keys;
 } Config;
 

@@ -2,8 +2,6 @@ FLAGS=-O0 -Wall -Wextra
 
 build: nwm nwmc
 
-all: nwm nwmc-test
-
 .PHONY: nwm
 nwm:
 	gcc $(FLAGS) -lpthread -lX11 src/*.c -o nwm

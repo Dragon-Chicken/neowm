@@ -11,12 +11,9 @@
 char *namestr;
 
 void sendsize(int s, char *str) {
-  //printf("sendsize\n");
-
   int len = strlen(str);
   char strsize[3] = {(len & 0x7f) | (1 << 7), ((len >> 7) & 0x7f) | (1 << 7), '\0'};
 
-  //printf("sending %d\n", (strsize[0] & 0x7f) | ((strsize[1] & 0x7f) << 7));
   if (send(s, strsize, strlen(strsize)+1, 0) == -1) {
     perror("send");
     exit(1);
@@ -36,7 +33,6 @@ int getret(int s) {
   char str[2];
   
   if ((len=recv(s, str, sizeof(str), 0)) > 0) {
-    //printf("got [%d]\n", str[0]);
   } else {
     if (len < 0)
       perror("recv");
@@ -72,30 +68,25 @@ void exiterr(char ret) {
 }
 
 int main(int argc, char *argv[]) {
+  // save name and make sure of enough arguments
   namestr = argv[0];
-  if (argc <= 1) {
+  if (argc <= 1)
     exiterr(1);
-  }
-  if (argc >= 6) {
+  if (argc >= 6)
     exiterr(2);
-  }
 
   int s, len;
   struct sockaddr_un remote = {
     .sun_family = AF_UNIX,
   };
 
-  if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket");
-    exit(1);
-  }
+  s = socket(AF_UNIX, SOCK_STREAM, 0);
 
   // try to connect
 
   strcpy(remote.sun_path, SOCK_PATH);
   len = strlen(remote.sun_path) + sizeof(remote.sun_family);
   if (connect(s, (struct sockaddr *)&remote, len) == -1) {
-    //perror("connect");
     fprintf(stderr, "nwm is not running\n");
     exit(1);
   }
@@ -109,9 +100,7 @@ int main(int argc, char *argv[]) {
 
   char donemsg[] = {0};
   senddata(s, donemsg);
-
   exiterr(getret(s) - 1);
-
   close(s);
 
   return 0;
