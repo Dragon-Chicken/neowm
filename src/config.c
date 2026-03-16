@@ -19,8 +19,8 @@
     TOK(border_size) \
     TOK(number_of_desktops) \
     TOK(resize_amount) \
-    TOK(border_focus_color) \
-    TOK(border_normal_color) \
+    TOK(focused_border_color) \
+    TOK(normal_border_color) \
     TOK(bind)
 
 typedef enum Token {
@@ -168,12 +168,14 @@ int splitlen(char *s, char *delim) {
 }
 
 Key makekeybind(char *keybind, char *cmd, char *args) {
+  printf("start bind\n");
   int mod = 0;
   KeySym keysym = 0;
   int (*func)(Arg *) = NULL;
   Arg arg = {0};
 
   // get the keybinds (super shfit q, alt enter, etc)
+  // ADD ENTER SUPPORT
   char *strptr = splitstring(keybind, " \t\n\r");
   while (strptr != NULL) {
     //printf("[%s]\n", strptr);
@@ -202,6 +204,7 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
 
   // get the command (spawn, exitwm, kill_window, etc)
   if (strcmp(cmd, "spawn") == 0) {
+    printf("set spawn\n");
     func = spawn;
   } else if (strcmp(cmd, "exit") == 0) {
     func = exitwm;
@@ -219,6 +222,8 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
 
   //printf("arg len = %d\n", splitlen(args, " \t\n\r"));
 
+  printf("args = [%s]\n", args);
+
   // spawn is the only case with more than one argument
   if (func != spawn) {
     //printf("is not spawn\n");
@@ -227,18 +232,24 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     int argslen = splitlen(args, " \t\n\r");
     arg.s = malloc(sizeof(char *) * (argslen + 1));
 
+    printf("argslen = %d\n", argslen);
+
     strptr = splitstring(args, " \t\n\r");
     for (int i = 0; i < argslen; i++) {
-      //printf("[%s]\n", strptr);
+      printf("[%s]\n", strptr);
 
       // allocates memory because "args" may be freed
       int strptrlen = strlen(strptr);
+
+      printf("strptrlen = %d\n", strptrlen);
       arg.s[i] = malloc(sizeof(char *) * (strptrlen + 1));
       memcpy(arg.s[i], strptr, strptrlen);
-      arg.s[i][strptrlen + 1] = '\0';
+      arg.s[i][strptrlen] = '\0';
 
       strptr = splitstring(NULL, " \t\n\r");
     }
+
+    arg.s[argslen] = '\0';
   }
 
   // something went wrong if any of these are 0
@@ -314,6 +325,7 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
           if (oldkeys)
             free(oldkeys);
           ret = 0;
+          rebindkeys();
         }
 
         free(*args);
@@ -323,22 +335,25 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
         *cmd = NULL;
         *keybind = NULL;
 
-        flushx11();
+        remapwins();
       } else *cmd = str;
     } else {
       // clear bindings
+      printf("to be suc\n");
       if (strcmp(str, "clear") == 0) {
         printf("suc\n");
         free(conf->keys);
         conf->keys = NULL;
         conf->keyslen = 0;
         ret = 0;
+        unbindkeys();
       } else {
         *keybind = str;
       }
     }
   } else {
     // strtol returns 0 if it fails to find a number
+    // so random rubbish will just be 0 (and is also valid xd)
     switch (*token) {
       case tok_vertical_gaps:
         conf->vgaps = strtol(str, NULL, 10);
@@ -355,10 +370,10 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
       case tok_resize_amount:
         conf->resize_amount = strtol(str, NULL, 10);
         break;
-      case tok_border_focus_color:
+      case tok_focused_border_color:
         conf->bord_foc_col = strtol(str, NULL, 16);
         break;
-      case tok_border_normal_color:
+      case tok_normal_border_color:
         conf->bord_nor_col = strtol(str, NULL, 16);
         break;
 
@@ -376,7 +391,7 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
   // if there was no error and this isn't a keybind then
   // flush (refresh) x11
   if (ret == 0 && *token != tok_bind) {
-    flushx11();
+    remapwins();
   }
 
   return ret;

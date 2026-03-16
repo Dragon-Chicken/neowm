@@ -1,12 +1,11 @@
 FLAGS=-O0 -Wall -Wextra
+PREFIX = /usr/local
 
 build: nwm nwmc
 
-.PHONY: nwm
 nwm:
 	gcc $(FLAGS) -lpthread -lX11 src/*.c -o nwm
 
-.PHONY: nwmc
 nwmc:
 	gcc $(FLAGS) src/nwmc/*.c -o nwmc
 
@@ -16,3 +15,16 @@ xephyr:
 clean:
 	rm nwm
 	rm nwmc
+
+install: build
+	mkdir -p ${DESTDIR}${PREFIX}/bin
+	cp -f nwm ${DESTDIR}${PREFIX}/bin
+	chmod 755 ${DESTDIR}${PREFIX}/bin/nwm
+	cp -f nwmc ${DESTDIR}${PREFIX}/bin
+	chmod 755 ${DESTDIR}${PREFIX}/bin/nwmc
+
+uninstall:
+	rm -f ${DESTDIR}${PREFIX}/bin/nwm\
+		${DESTDIR}${PREFIX}/bin/nwmc
+
+.PHONY: nwm nwmc

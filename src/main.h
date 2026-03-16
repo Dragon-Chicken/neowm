@@ -15,6 +15,8 @@
 #define LENGTH(X) (int)(sizeof(X) / sizeof(X[0]))
 #define CLEANMASK(mask) (mask & ~(LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
+#define NWM_DEBUG
+
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; // wmatom
 enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
   NetWMStrutPartial,
@@ -31,7 +33,7 @@ struct Client {
   Window win;
   unsigned int path;
   int depth;
-  int split; // change this to float
+  float split;
   int x, y, w, h;
   int minw, minh;
   int maxw, maxh;
@@ -73,14 +75,19 @@ typedef struct Config {
 
 
 // debug
-void printerr(char *errstr);
+#ifdef NWM_DEBUG
 void printpath(unsigned int path, int depth);
 int printbsptree(Client *c);
+void printll(Client *c);
+#endif
 
 // helpers
+void printerr(char *errstr);
 char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
-void flushx11(void);
+void remapwins(void);
+void rebindkeys(void);
+void unbindkeys(void);
 
 // events
 void voidevent(XEvent *);
@@ -98,6 +105,7 @@ unsigned int findpath(unsigned int path, int depth, bool dir);
 Client *findclientindir(Client *incl, int dir);
 int mapwins(Client *c);
 void manage(Window w);
+// this is for a special case in unmanage()
 int fixchildren(Client *c);
 void unmanage(Window destroywin);
 void createclientlist(void);
