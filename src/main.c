@@ -1,8 +1,11 @@
 #include "main.h"
 #include "config.h"
+#include <X11/Xlib.h>
 
 Atom wmatom[WMLast];
 Atom netatom[NetLast];
+
+Cursor cursor;
 
 Desktop *desktops;
 long deski;
@@ -24,7 +27,7 @@ int (*xerrorxlib)(Display *, XErrorEvent *);
 // debug
 #ifdef NWM_DEBUG
 void printpath(unsigned int path, int depth) {
-  printf("printpath\n");
+  //printf("printpath\n");
   for (int i = 0; i < depth; i++) {
     if ((path & (1 << i)) == 1) {
       printf("1");
@@ -38,7 +41,7 @@ int printbsptree(Client *c) {
   printf("printbsptree\n");
   if (!c) {
     printf("client is invalid\n");
-    return 0;
+    return FAIL;
   }
 
   printf("win: ");
@@ -57,7 +60,7 @@ int printbsptree(Client *c) {
     printf(", b->path=%-8lb, b->win=%-8lx", c->b->path, c->b->win);*/
   printf("\n");
 
-  return 1;
+  return SUC;
 }
 
 void printll(Client *c) {
@@ -104,9 +107,9 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
     }
     /**retatom = *(Atom *)p;*/
     XFree(p);
-    return 1;
+    return SUC;
   }
-  return 0;
+  return FAIL;
 }
 
 void rebindkeys(void) {
@@ -128,7 +131,6 @@ void remapwins(void) {
   looptree(desktops[deski].headc, drawwins);
   looptree(desktops[deski].headc, updateborders);
   updatebordersll(desktops[deski].floating);
-  //rebindkeys();
   XSync(dpy, False); // updates x11
 }
 
@@ -255,7 +257,7 @@ Client *createclient(void) {
   c->win = root;
   c->path = 0;
   c->depth = 0;
-  c->split = 50.0f;
+  c->split = 0.5f;
   c->x = 0;
   c->y = 0;
   c->w = screenw;
@@ -278,6 +280,10 @@ void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
     a->y = b->y;
     a->w = b->w;
     a->h = b->h;
+    a->minw = b->minw;
+    a->minh = b->minh;
+    a->maxw = b->maxw;
+    a->maxh = b->maxh;
   }
   if (path) {
     a->path = b->path;
@@ -287,20 +293,20 @@ void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab) {
   if (ab) {
     a->a = b->a;
     a->b = b->b;
+    a->split = b->split;
   }
 }
 
-unsigned int findpath(unsigned int path, int depth, bool dir) {
+unsigned int findpath(unsigned int path, int depth, Bool dir) {
 #ifdef NWM_DEBUG
   printf("finding path\n");
 #endif
 
   if (dir == 0)
     depth = 32;
-
-  if (!(depth & 1)) {
+  if (!(depth & 1))
     depth--;
-  }
+
   for (int i = depth - 1; i >= 0; i -= 2) {
     /*printf("path: %.8b\n", path);
     printf("i: %d\n", i);
@@ -317,10 +323,31 @@ unsigned int findpath(unsigned int path, int depth, bool dir) {
         break;
     }
   }
+
+  /*for (int i = depth; i >= 0; i -= 2) {
+    if ((path >> i) & 1) {
+      path = path & ~(1 << i);
+      if (!dir)
+        break;
+    } else {
+      path = path | (1 << i);
+      if (dir)
+        break;
+    }
+  }*/
+
+/*
+  cl->path: 0000000000000001
+  destpath: 1010101010101010101010101010100
+  cl->path: 0000000000000000
+  destpath: 0000000000000010
+  cl->path: 0000000000000010
+*/
+
   return path;
 }
 
-Client *findclientindir(Client *incl, int dir) {
+Client *findclientindir(Client *incl, enum Dir dir) {
 #ifdef NWM_DEBUG
   printf("findclientdir\n");
 #endif
@@ -328,30 +355,32 @@ Client *findclientindir(Client *incl, int dir) {
   Client *cl;
 
   switch (dir) {
-    case 0:
-      destpath = findpath(incl->path, incl->depth, 1);
-      break;
-    case 1:
-      destpath = findpath(incl->path, incl->depth, 0);
-      break;
-    case 2:
-      destpath = findpath(incl->path >> 1, incl->depth - 1, 0);
-      destpath <<= 1;
-      destpath |= incl->path & 1;
-      break;
-    case 3:
+    case dirup: // k/up
       destpath = findpath(incl->path >> 1, incl->depth - 1, 1);
       destpath <<= 1;
       destpath |= incl->path & 1;
       break;
+    case dirdown: // j/down
+      destpath = findpath(incl->path >> 1, incl->depth - 1, 0);
+      destpath <<= 1;
+      destpath |= incl->path & 1;
+      break;
+    case dirleft: // h/left
+      destpath = findpath(incl->path, incl->depth, 1);
+      break;
+    case dirright: // l/right
+      destpath = findpath(incl->path, incl->depth, 0);
+      break;
   }
 
-  //printf("destpath: %.16b\n", destpath);
+  printf("destpath: %.16b\n", destpath);
 
   if (!gototree(desktops[deski].headc, &cl, destpath, 32, findclientpath)) {
     printf("can't find client\n");
     return NULL;
   }
+
+  printf("cl->path: %.16b\n", cl->path);
 
   return cl;
 }
@@ -371,43 +400,44 @@ int mapwins(Client *c) {
     c->h = screenh + shoff - (conf->vgaps*2) - (conf->bord_size*2);
     c->x = 0 + sxoff + conf->hgaps;
     c->y = 0 + syoff + conf->vgaps;
-    return 1;
+    return SUC;
   }
 
   if ((c->path & (1 << (c->depth - 1))) == 0) {
     if (c->depth & 1) {
-      c->w *= (100.0 - c->p->split)/100.0;
-      if (c->p->w * (100.0 - c->p->split)/100.0 > c->w)
+      c->w *= 1.0 - c->p->split;
+      if (c->p->w * (1.0 - c->p->split) > c->w)
         c->w += 1;
       c->w -= conf->hgaps/2 + conf->bord_size;
 
-      c->x += (c->p->w * c->p->split) / 100.0;
+      c->x += c->p->w * c->p->split;
       c->x += conf->hgaps/2 + conf->bord_size;
     } else {
-      c->h *= (100.0 - c->p->split)/100.0;
-      if (c->p->h * (100.0 - c->p->split)/100.0 > c->h)
+      c->h *= 1.0 - c->p->split;
+      if (c->p->h * (1.0 - c->p->split) > c->h)
         c->h += 1;
       c->h -= conf->vgaps/2 + conf->bord_size;
 
-      c->y += (c->p->h * c->p->split) / 100.0;
+      c->y += c->p->h * c->p->split;
       c->y += conf->vgaps/2 + conf->bord_size;
     }
   } else {
     if (c->depth & 1) {
-      c->w *= (c->p->split)/100.0;
+      c->w *= c->p->split;
       c->w -= conf->hgaps/2 + conf->bord_size;
     } else {
-      c->h *= (c->p->split)/100.0;
+      c->h *= c->p->split;
       c->h -= conf->vgaps/2 + conf->bord_size;
     }
   }
 
   if (c->w <= 0 || c->h <= 0) {
     printerr("width/height too small\n");
-    int ret = 1;
-    exitwm((Arg *)&ret);
+    // this does not remove client from the tree.
+    removefromtree(c->win);
+    addtoll(desktops[deski].floating, c);
   }
-  return 1;
+  return SUC;
 }
 
 int unmapwins(Client *c) {
@@ -415,7 +445,7 @@ int unmapwins(Client *c) {
   printf("unmapwins\n");
 #endif
   XUnmapWindow(dpy, c->win);
-  return 1;
+  return SUC;
 }
 
 void manage(Window w) {
@@ -467,6 +497,7 @@ void manage(Window w) {
       PropModeReplace, (unsigned char *)&deski, 1);
 
   // rofi NEEDS this (otherwise it will not close properly...)
+  // should try to get rid of this
   Atom protos[] = {wmatom[WMDelete]};
   XSetWMProtocols(dpy, newc->win, protos, 1);
 
@@ -491,28 +522,7 @@ void manage(Window w) {
   // if the window doesn't want to be resized (minw == maxw && minh == maxh)
   // just make it floating
   if (newc->maxw == newc->minw && newc->maxh == newc->minh) {
-    Client *c = desktops[deski].floating;
-    if (!desktops[deski].floating) {
-      desktops[deski].floating = newc;
-    } else {
-      while (c->a) {
-        c = c->a;
-      }
-      if (!c) {
-        printerr("can't find window? (in manage at floating)");
-        exitwm(NULL);
-      }
-
-      c->a = newc;
-    }
-    newc->a = NULL;
-    newc->b = NULL;
-    newc->w = newc->minw;
-    newc->h = newc->minw;
-    newc->floating = True;
-    drawwins(newc);
-
-    printf("added to floating wins\n");
+    addtoll(desktops[deski].floating, newc);
     return;
   }
 
@@ -539,7 +549,7 @@ void manage(Window w) {
 
   // for some client list (ewmh)
   totalwins++;
-  createclientlist();
+  //createclientlist();
 }
 
 int fixchildren(Client *c) {
@@ -548,7 +558,7 @@ int fixchildren(Client *c) {
 #endif
 
   if (!c)
-    return 0;
+    return FAIL;
   
   if (c->a) {
     c->a->depth--;
@@ -561,7 +571,7 @@ int fixchildren(Client *c) {
     c->b->p = c;
   }
 
-  return 1;
+  return SUC;
 }
 
 void unmanage(Window w) {
@@ -572,94 +582,21 @@ void unmanage(Window w) {
   // may be fixed with the function above (fixchildren)?
   // nope there is a bug with focusing and maybe pointers to freed memory
 
-  if (!w)
-    return;
-
-  if (w == root) {
-    printf("root\n");
-    return;
-  }
-
-  //printf("w: %lx\n", w);
-
   Client *c = NULL;
-  Client *headc = NULL;
-  Client *focused = NULL;
-  int dt = 0;
-
-  for (dt = 0; dt < conf->num_of_desktops; dt++) {
-    c = findclient(desktops[dt].headc, w);
-    if (c) {
-      /*printf("found client\n");
-      printf("dt: %d\n", dt);
-      printf("deski: %ld\n", deski);*/
-      headc = desktops[dt].headc;
-      focused = desktops[dt].focused;
-      break;
+  if ((c = removefromtree(w)) == NULL) {
+    printerr("can't remove from tree\n");
+    if ((c = removefromll(w)) == NULL) {
+      printerr("can't remove from ll\n");
+      return;
     }
   }
 
-  if (!c) {
-    printf("c is null\n");
-    return;
-  }
-
-  // to delete all clients
-  if (c == headc) {
-    printf("c is head\n");
-    free(desktops[dt].headc);
-    desktops[dt].headc = createclient();
-    desktops[dt].focused = NULL;
-    setfocus(desktops[dt].focused);
-
-    totalwins--;
-    createclientlist();
-    return;
-  }
-
-  // can't delete this node if it has both children
-  if (c->a && c->b) {
-    printerr("client is invalid (has both children)\n");
-    return;
-  }
-
-  Client *prevc = c->p;
-
-  if (!prevc) {
-    return;
-  }
-
-  if (c == prevc) {
-    printf("##########\nc == prevc (this is an error state in unmanage)\n##########\n");
-    return;
-  }
-
-  if (!prevc->a && !prevc->b) {
-    printf("doesn't have both children\n");
-    return;
-  }
-
-  if (prevc->a == c) {
-    copyclientdata(prevc, prevc->b, True, False, True);
-  } else {
-    copyclientdata(prevc, prevc->a, True, False, True);
-  }
-
-  looptree(prevc, fixchildren);
-
-  if (c == focused)
-    setfocus(prevc);
-
-  //printf("freeing c\n");
   free(c);
-#ifdef NWM_DEBUG
-  printf("mapping wins (after deletion)\n");
-#endif
-  looptree(headc, mapwins);
-  looptree(headc, drawwins);
+  looptree(desktops[deski].headc, mapwins);
+  looptree(desktops[deski].headc, drawwins);
 
   totalwins--;
-  createclientlist();
+  //createclientlist();
 }
 
 int addtoclientlist(Client *c, Window *wins, int index) {
@@ -715,6 +652,85 @@ Client *findclientll(Client *c, Window win) {
   return NULL;
 }
 
+int addtoll(Client *c, Client *newc) {
+  if (!newc) {
+    return FAIL;
+  }
+
+  newc->floating = True;
+  newc->a = NULL;
+  newc->b = NULL;
+  newc->p = NULL;
+
+  if (!c) {
+    if (!desktops[deski].floating) {
+      desktops[deski].floating = newc;
+      drawwins(newc);
+      return SUC;
+    }
+    c = desktops[deski].floating;
+  }
+
+  while (c->a)
+    c = c->a;
+
+  // a forward
+  // b backward
+  c->a = newc;
+  newc->b = c;
+
+  drawwins(newc); // just draws the new one
+
+  return SUC;
+}
+
+Client *removefromll(Window w) {
+  Client *c = NULL;
+  Client *floating = NULL;
+  Client *focused = NULL;
+  int dt = 0;
+
+  for (dt = 0; dt < conf->num_of_desktops; dt++) {
+    c = findclientll(desktops[dt].floating, w);
+    if (c) {
+      floating = desktops[dt].floating;
+      focused = desktops[dt].focused;
+      break;
+    }
+  }
+
+  if (!c) {
+    printf("can't find window\n");
+    return NULL;
+  }
+
+  // a forward
+  // b backward
+  //
+  // check if has next
+  if (c->a) {
+    c->a->b = c->b;
+  }
+
+  // if head set head to next
+  if (c == floating) {
+    desktops[dt].floating = c->a;
+    c->b = c->a; // CHANGES IT'S PREV CLIENT FOR FOCUSING
+  } else {
+    c->b->a = c->a;
+  }
+
+  if (c == focused) {
+    if (c->b) {
+      setfocus(desktops[dt].focused);
+    } else {
+      setfocus(desktops[dt].tilefoc);
+    }
+  }
+
+  return c;
+}
+
 
 // bsp
 int looptree(Client *c, int (*func)(Client *)) {
@@ -722,7 +738,7 @@ int looptree(Client *c, int (*func)(Client *)) {
   printf("looptree\n");
 #endif
   if (!c)
-    return 0;
+    return FAIL;
 
   func(c);
 
@@ -730,7 +746,7 @@ int looptree(Client *c, int (*func)(Client *)) {
     looptree(c->a, func);
   if (c->b)
     looptree(c->b, func);
-  return 0;
+  return SUC;
 }
 
 Client *findclient(Client *c, Window win) {
@@ -754,7 +770,7 @@ int findclientpath(Client *c, Client **retc) {
   printf("findpath\n");
 #endif
   *retc = c;
-  return 1;
+  return SUC;
 }
 
 int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **)) {
@@ -763,17 +779,16 @@ int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)
 #endif
   if (depth < 0) {
     printf("depth < 0\n");
-    return 0;
+    return FAIL;
   }
   if (!c) {
     printf("c is null\n");
-    return 0;
+    return FAIL;
   }
   if (depth <= 0 || !c->a || !c->b) {
     //printf("running func\n");
     return func(c, retc);
   }
-
 
   if (path & 1)
     return gototree(c->a, retc, path >> 1, depth - 1, func);
@@ -787,7 +802,7 @@ int addtotree(Client *c, Client **newc) {
 #endif
   if (!c) {
     printf("c is null\n");
-    return 0;
+    return FAIL;
   }
   if (c->win != root) {
     c->b = *newc;
@@ -808,7 +823,79 @@ int addtotree(Client *c, Client **newc) {
     c->p = NULL;
     *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
   }
-  return 1;
+  return SUC;
+}
+
+Client *removefromtree(Window w) {
+  // this function won't free the client, it just removes it from the tree and returns it
+
+  if (!w)
+    return NULL;
+
+  if (w == root) {
+    printf("root\n");
+    return NULL;
+  }
+
+  Client *c = NULL;
+  Client *headc = NULL;
+  Client *focused = NULL;
+  int dt = 0; // DeskTop of deleted win
+
+  for (dt = 0; dt < conf->num_of_desktops; dt++) {
+    c = findclient(desktops[dt].headc, w);
+    if (c) {
+      headc = desktops[dt].headc;
+      focused = desktops[dt].focused;
+      break;
+    }
+  }
+
+  if (!c)
+    return FAIL;
+
+  // to delete all clients
+  if (c == headc) {
+    desktops[dt].headc = createclient();
+    desktops[dt].focused = NULL;
+    setfocus(desktops[dt].focused);
+
+    totalwins--;
+    //createclientlist();
+    return c; // caller should free this
+  }
+
+  if (c->a || c->b) {
+    printerr("can't delete window, has children (how did we get here...?)\n");
+    exitwm(NULL);
+  }
+
+  Client *prevc = c->p;
+  if (!prevc)
+    return NULL;
+
+  if (c == prevc) {
+    printf("##########\nc == prevc (this is an error state in unmanage)\n##########\n");
+    exitwm(NULL);
+  }
+
+  if (!prevc->a && !prevc->b) {
+    printf("doesn't have both children\n");
+    exitwm(NULL);
+  }
+
+  if (prevc->a == c) {
+    copyclientdata(prevc, prevc->b, True, False, True);
+  } else {
+    copyclientdata(prevc, prevc->a, True, False, True);
+  }
+
+  looptree(prevc, fixchildren);
+
+  if (c == focused)
+    setfocus(prevc);
+
+  return c; // caller should free this
 }
 
 
@@ -820,15 +907,15 @@ int focusswitch(Arg *arg) {
 
   Client *focused = desktops[deski].focused;
 
-  if (!focused || !focused->p)
-    return 0;
+  if (!focused || !focused->p || focused->floating)
+    return FAIL;
 
   desktops[deski].focused = findclientindir(focused, arg->i);
   focused = desktops[deski].focused;
   setfocus(focused);
   XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
 
-  return 1;
+  return SUC;
 }
 
 int resizeclient(Arg *arg) {
@@ -836,65 +923,101 @@ int resizeclient(Arg *arg) {
   printf("resizeclient\n");
 #endif
   int dir = arg->i;
-  Client *focused = desktops[deski].focused;
 
-  //printf("resizing client\n");
-  //printf("dir = %d\n", dir);
+  static int iters;
+  static Client *focused;
+  if (iters == 0) {
+    focused = desktops[deski].focused;
+  }
+
+  iters++;
 
   if (!focused->p) {
 #ifdef NWM_DEBUG
     printf("focused doesn't have a parent\n");
 #endif
-    return 0;
+    return FAIL;
   }
 
   Client *ca = focused->p->a;
   Client *cb = focused->p->b;
 
   if (!ca || !cb)
-    return 0;
+    return FAIL;
 
-  /*printf("ca->x = %d\n", ca->x);
-  printf("ca->y = %d\n", ca->y);
-  printf("cb->x = %d\n", cb->x);
-  printf("cb->y = %d\n", cb->y);*/
-
-  if (((dir >= 2) && (ca->x == cb->x)) ||
-      ((dir <= 1) && (ca->y == cb->y))) {
+  if (((dir >= 2) && (ca->p->depth & 1)) ||
+      ((dir <= 1) && !(ca->p->depth & 1))) {
     Client *tempfoc = focused;
-    // may be a bad idea to change this?
-    desktops[deski].focused = focused->p;
-    focused = desktops[deski].focused;
+    focused = focused->p;
     if (!focused)
-      return 0;
+      return FAIL;
     if (resizeclient(arg)) {
-      XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
-      desktops[deski].focused = tempfoc;
-      focused = desktops[deski].focused;
-      return 1;
+      focused = tempfoc;
+      return SUC;
     }
-    XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
-    desktops[deski].focused = tempfoc;
-    focused = desktops[deski].focused;
+    focused = tempfoc;
   }
 
-  if (dir >= 2)
+  iters = 0;
+
+  /*
+   * 1920
+   * 1920 * 0.5 = 960
+   * 960 * 0.5 = 480
+   *
+   * 1920 * 0.5 * 0.5 = 1920 * (1920/960) = 480
+   * 1920/960 = 960/480
+   *
+   * 1920 * x = 10
+   * 10 / 1920 = ~10 (9.6)
+   *
+   * pixels/screenw * screenw/windoww
+   */
+
+  if (dir >= 2) {
     dir -= 2;
-
-  ca->p->split += conf->resize_amount * ((dir * 2) - 1);
-
-  if (ca->p->split >= 90) {
-    ca->p->split = 90;
-  } else if (ca->p->split <= 10) {
-    ca->p->split = 10;
   }
+
+  if (ca->depth & 1) {
+    double scrwinratio = (double)screenw/(double)ca->p->w;
+    double pixeltopercent = scrwinratio * conf->min_size/screenw;
+
+    ca->p->split += conf->resize_amount * scrwinratio * ((dir * 2) - 1);
+
+    if (ca->p->split <= pixeltopercent)
+      ca->p->split = pixeltopercent;
+    else if (ca->p->split >= 1.0f - pixeltopercent)
+      ca->p->split = 1.0f - pixeltopercent;
+  } else {
+    double scrwinratio = (double)screenh/(double)ca->p->h;
+    double pixeltopercent = scrwinratio * conf->min_size/screenh;
+
+    ca->p->split += conf->resize_amount * ((double)screenh/(double)ca->p->h) * ((dir * 2) - 1);
+
+    if (ca->p->split <= pixeltopercent)
+      ca->p->split = pixeltopercent;
+    else if (ca->p->split >= 1.0f - pixeltopercent)
+      ca->p->split = 1.0f - pixeltopercent;
+  }
+
+
+  /*if ((ca->w >= ca->p->w) || (ca->h >= ca->p->h)) {
+    ca->p->split -= conf->resize_amount * ((dir * 2) - 1);
+  }*/
+
+  // should prob change this to also be relative to the screen
+  /*if (ca->p->split >= 0.9f) {
+    ca->p->split = 0.9f;
+  } else if (ca->p->split <= 0.1f) {
+    ca->p->split = 0.1f;
+  }*/
 
   looptree(desktops[deski].headc, mapwins);
   looptree(desktops[deski].headc, drawwins);
 
   setfocus(focused);
   XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
-  return 1;
+  return SUC;
 }
 
 int focusdesktop(Arg *arg) {
@@ -904,7 +1027,7 @@ int focusdesktop(Arg *arg) {
 
   if (arg->i > conf->num_of_desktops) {
     printerr("can't focus desktop (out of range)\n");
-    return 1;
+    return FAIL;
   }
 
   XGrabServer(dpy);
@@ -933,13 +1056,16 @@ int focusdesktop(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("focus switched to desktop %ld\n", deski);
 #endif
-  return 1;
+  return SUC;
 }
 
-/*this code needs to be worked on
- *there is some posix stuff that dwm does that this code DOES NOT DO
- *god know if this is fixed ^
- *prob fixed*/
+/*
+ this code needs to be worked on
+ there is some posix stuff that dwm does that this code DOES NOT DO
+ god know if this is fixed ^
+ prob fixed
+ uhh this only returns suc...
+*/
 int spawn(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("spawning: %s\n", arg->s[0]);
@@ -962,7 +1088,7 @@ int spawn(Arg *arg) {
     exit(0); // kills child process
   }
 
-  return 1;
+  return SUC;
 }
 
 int killfocused(Arg *arg) {
@@ -971,7 +1097,7 @@ int killfocused(Arg *arg) {
   printf("killfocused\n");
 #endif
   if (!desktops[deski].focused)
-    return 0;
+    return FAIL;
 
   if (sendevent(desktops[deski].focused, wmatom[WMDelete]) == 0) {
     printf("failed to send event\n");
@@ -984,7 +1110,7 @@ int killfocused(Arg *arg) {
     XUngrabServer(dpy);
   }
 
-  return 1;
+  return SUC;
 }
 
 int exitwm(Arg *arg) {
@@ -998,7 +1124,59 @@ int exitwm(Arg *arg) {
     exit(arg->i);
 
   exit(0);
-  return 1;
+  return SUC;
+}
+
+int floatclient(Arg *arg) {
+  (void)arg;
+
+  //looptree(desktops[deski].headc, printbsptree);
+
+  if (!desktops[deski].focused)
+    return FAIL;
+
+  Client *c = removefromtree(desktops[deski].focused->win);
+
+  if (!c)
+    return FAIL;
+
+  c->floating = True;
+  c->a = NULL;
+  c->b = NULL;
+  c->p = NULL;
+
+  addtoll(desktops[deski].floating, c);
+
+  setfocus(c);
+
+  //looptree(desktops[deski].headc, printbsptree);
+
+  looptree(desktops[deski].headc, mapwins);
+  looptree(desktops[deski].headc, drawwins);
+  return SUC;
+}
+
+int focustoggle(Arg *arg) {
+  (void)arg;
+
+  Client *focused = desktops[deski].focused;
+
+  if (!focused)
+    return FAIL;
+
+  if (focused->floating) {
+    if (focused->a)
+      focused = focused->a;
+    else
+      focused = desktops[deski].tilefoc;
+  } else if (desktops[deski].floating) {
+    focused = desktops[deski].floating;
+  }
+
+  setfocus(focused);
+  XWarpPointer(dpy, None, root, 0, 0, 0, 0, focused->x + (focused->w/2), focused->y + (focused->h/2));
+
+  return SUC;
 }
 
 
@@ -1063,7 +1241,8 @@ void setfocus(Client *c) {
 void updatebordersll(Client *c) {
   while (c != NULL) {
     XSetWindowBorderWidth(dpy, c->win, conf->bord_size);
-    XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
+    //XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
+    XSetWindowBorder(dpy, c->win, 0xffff0000);
     c = c->a;
   }
 }
@@ -1073,11 +1252,11 @@ int updateborders(Client *c) {
   printf("updateborders\n");
 #endif
   if (!c)
-    return 0;
+    return FAIL;
 
   XSetWindowBorderWidth(dpy, c->win, conf->bord_size);
   XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
-  return 1;
+  return SUC;
 }
 
 int drawwins(Client *c) {
@@ -1085,18 +1264,18 @@ int drawwins(Client *c) {
   printf("drawwins\n");
 #endif
   if (!c)
-    return 0;
+    return FAIL;
 
-  if (c->win != root) {
+  if (c->win == root)
+    return FAIL;
+
 #ifdef NWM_DEBUG
-    printf("win: path=%-8b, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
-        c->path, c->win, c->x, c->y, c->w, c->h);
+  printf("win: path=%-8b, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
+         c->path, c->win, c->x, c->y, c->w, c->h);
 #endif
-    XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
-    XMapWindow(dpy, c->win);
-    return 1;
-  }
-  return 0;
+  XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+  XMapWindow(dpy, c->win);
+  return SUC;
 }
 
 
@@ -1112,6 +1291,10 @@ void setup(void) {
   // for docks/bars
   sxoff = 0;
   syoff = 0;
+
+  // to load the cursor at the start
+  cursor = XcursorLibraryLoadCursor(dpy, "left_ptr");
+  XDefineCursor(dpy, root, cursor);
 
   // https://tronche.com/gui/x/xlib/events/processing-overview.html
   XSelectInput(dpy, root, SubstructureRedirectMask|SubstructureNotifyMask|FocusChangeMask|EnterWindowMask|PropertyChangeMask);
@@ -1143,7 +1326,8 @@ void setup(void) {
     .bord_foc_col = 0xffeeeeee,
     .bord_nor_col = 0xff333333,
     .num_of_desktops = 5,
-    .resize_amount = 5,
+    .resize_amount = 0.05f,
+    .min_size = 50.0f,
     .keyslen = 1,
   };
   conf->keys = NULL;
@@ -1183,9 +1367,9 @@ void setup(void) {
   conf->keys[7] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {2}};
   conf->keys[8] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {3}};
 
-  conf->keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {2}};
-  conf->keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {1}};
   conf->keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {0}};
+  conf->keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {1}};
+  conf->keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {2}};
   conf->keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {3}};
 
   conf->keys[13] = (Key){Mod1Mask, XStringToKeysym("1"), focusdesktop, {0}};
@@ -1220,11 +1404,11 @@ void setup(void) {
   }
 
   // startup script
-  /*arg = malloc(sizeof(char *) * 2);
+  arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/startup";
   arg[1] = NULL;
   spawn(&(Arg){.s = arg});
-  free(arg);*/
+  free(arg);
 
   arg = malloc(sizeof(char *) * 2);
   arg[0] = "/home/ethan/neowm/nwm.conf";
@@ -1355,7 +1539,7 @@ int main(void) {
 
     handler[ev.type](&ev);
 
-    printf("done\n");
+    //printf("done\n");
   }
 
   printerr("exiting with no errors\n");

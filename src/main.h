@@ -1,19 +1,27 @@
 #ifndef NWM_MAIN
 #define NWM_MAIN
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/Xcursor/Xcursor.h>
+
 #define WM_NAME "nwm"
 
 #define LENGTH(X) (int)(sizeof(X) / sizeof(X[0]))
 #define CLEANMASK(mask) (mask & ~(LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
+
+// for function returns
+// easier to write this way
+#define FAIL 0
+#define SUC 1
 
 #define NWM_DEBUG
 
@@ -25,20 +33,22 @@ enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
   NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetDesktopNames, NetClientList,
   NetLast }; // netatom
 
-typedef struct Client Client;
-struct Client {
-  Client *a;
-  Client *b;
-  Client *p;
+enum Dir { dirup, dirdown, dirleft, dirright };
+
+typedef struct Client {
+  struct Client *a;
+  struct Client *b;
+  struct Client *p;
+  //struct Client *last; // find out what this was for...
   Window win;
   unsigned int path;
   int depth;
-  float split;
+  double split;
   int x, y, w, h;
   int minw, minh;
   int maxw, maxh;
   Bool floating;
-};
+} Client;
 
 typedef struct Desktop {
   Client *headc;
@@ -63,12 +73,13 @@ typedef struct Config {
   int vgaps;
   int hgaps;
   int bord_size;
-  int keyslen;
   int num_of_desktops;
-  unsigned int resize_amount;
+  int keyslen;
+  int desktop_names_len;
+  int min_size;
+  double resize_amount;
   long bord_foc_col;
   long bord_nor_col;
-  int desktop_names_len;
   char *desktop_names;
   Key *keys;
 } Config;
@@ -101,8 +112,8 @@ void focusin(XEvent *ev);
 // client
 Client *createclient(void);
 void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab);
-unsigned int findpath(unsigned int path, int depth, bool dir);
-Client *findclientindir(Client *incl, int dir);
+unsigned int findpath(unsigned int path, int depth, Bool dir);
+Client *findclientindir(Client *incl, enum Dir dir);
 int mapwins(Client *c);
 void manage(Window w);
 // this is for a special case in unmanage()
@@ -112,6 +123,9 @@ void createclientlist(void);
 
 // linked list
 Client *findclientll(Client *c, Window win);
+int addtoll(Client *c, Client *newc);
+int floatclient(Arg *arg);
+Client *removefromll(Window w);
 
 // bsp
 int looptree(Client *c, int (*func)(Client *));
@@ -119,6 +133,7 @@ Client *findclient(Client *c, Window win);
 int findclientpath(Client *c, Client **retc);
 int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
 int addtotree(Client *c, Client **newc);
+Client *removefromtree(Window w);
 
 // keypress
 int focusswitch(Arg *arg);
@@ -127,6 +142,7 @@ int focusdesktop(Arg *arg);
 int spawn(Arg *arg);
 int killfocused(Arg *);
 int exitwm(Arg *arg);
+int focustoggle(Arg *arg);
 
 // x11
 int sendevent(Client *c, Atom proto);

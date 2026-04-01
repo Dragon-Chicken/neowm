@@ -1,3 +1,4 @@
+#include <X11/Xutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +7,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <pthread.h>
+
+#include <X11/keysym.h>
+#include <X11/XF86keysym.h>
 
 #include "config.h"
 #include "main.h"
@@ -18,6 +22,8 @@
     TOK(horizontal_gaps) \
     TOK(border_size) \
     TOK(number_of_desktops) \
+    TOK(desktop_names) \
+    TOK(minimum_size) \
     TOK(resize_amount) \
     TOK(focused_border_color) \
     TOK(normal_border_color) \
@@ -179,7 +185,11 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   char *strptr = splitstring(keybind, " \t\n\r");
   while (strptr != NULL) {
     //printf("[%s]\n", strptr);
-    if (strcmp(strptr, "alt") == 0) {
+
+    if (strlen(strptr) == 1) {
+      keysym = XStringToKeysym(strptr);
+
+    } else if (strcmp(strptr, "alt") == 0) {
       mod |= Mod1Mask;
     } else if (strcmp(strptr, "numlock") == 0) {
       mod |= Mod2Mask;
@@ -193,9 +203,21 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
       mod |= ShiftMask;
     } else if (strcmp(strptr, "control") == 0 || strcmp(strptr, "ctrl") == 0) {
       mod |= ControlMask;
-    } else if (keysym == 0 && strlen(strptr) == 1) {
-      keysym = XStringToKeysym(strptr);
-    }
+
+      // if wasn't the above, it's probably these weird keys
+    } else {
+      if (strcmp(strptr, "XF86AudioRaiseVolume") == 0) {
+        keysym = XF86XK_AudioRaiseVolume;
+      } else if (strcmp(strptr, "XF86AudioLowerVolume") == 0) {
+        keysym = XF86XK_AudioLowerVolume;
+      } else if (strcmp(strptr, "XF86AudioMute") == 0) {
+        keysym = XF86XK_AudioMute;
+      } else if (strcmp(strptr, "Print") == 0) {
+        keysym = XK_Print;
+      } else if (strcmp(strptr, "Space") == 0 || strcmp(strptr, "space") == 0) {
+        keysym = XK_space;
+      }
+     }
 
     strptr = splitstring(NULL, " \t\n\r");
   }
@@ -208,10 +230,14 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     func = spawn;
   } else if (strcmp(cmd, "exit") == 0) {
     func = exitwm;
+  } else if (strcmp(cmd, "float") == 0) {
+    func = floatclient;
   } else if (strcmp(cmd, "kill_window") == 0) {
     func = killfocused;
   } else if (strcmp(cmd, "focus_switch") == 0) {
     func = focusswitch;
+  } else if (strcmp(cmd, "focus_toggle") == 0) {
+    func = focustoggle;
   } else if (strcmp(cmd, "resize_window") == 0) {
     func = resizeclient;
   } else if (strcmp(cmd, "switch_desktop") == 0) {
@@ -225,23 +251,28 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   printf("args = [%s]\n", args);
 
   // spawn is the only case with more than one argument
-  if (func != spawn) {
-    //printf("is not spawn\n");
+  if (func == resizeclient || func == focusswitch) {
+    if (strcmp(args, "up") == 0) {
+      arg.i = dirup;
+    } else if (strcmp(args, "down") == 0) {
+      arg.i = dirdown;
+    } else if (strcmp(args, "left") == 0) {
+      arg.i = dirleft;
+    } else if (strcmp(args, "right") == 0) {
+      arg.i = dirright;
+    } else {
+      arg.i = strtol(args, NULL, 10);
+    }
+
+  } else if (func != spawn) {
     arg.i = strtol(args, NULL, 10);
   } else {
     int argslen = splitlen(args, " \t\n\r");
     arg.s = malloc(sizeof(char *) * (argslen + 1));
-
-    printf("argslen = %d\n", argslen);
-
     strptr = splitstring(args, " \t\n\r");
     for (int i = 0; i < argslen; i++) {
-      printf("[%s]\n", strptr);
-
       // allocates memory because "args" may be freed
       int strptrlen = strlen(strptr);
-
-      printf("strptrlen = %d\n", strptrlen);
       arg.s[i] = malloc(sizeof(char *) * (strptrlen + 1));
       memcpy(arg.s[i], strptr, strptrlen);
       arg.s[i][strptrlen] = '\0';
@@ -265,7 +296,7 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
 
   if (mod == 0 || keysym == 0 || func == NULL) {
     printf("something was 0\n");
-    return (Key){0, 0, NULL, {0}};
+    //return (Key){0, 0, NULL, {0}};
   }
 
   //printf("#### token made ####\n");
@@ -339,9 +370,9 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
       } else *cmd = str;
     } else {
       // clear bindings
-      printf("to be suc\n");
+      //printf("to be suc\n");
       if (strcmp(str, "clear") == 0) {
-        printf("suc\n");
+        //printf("suc\n");
         free(conf->keys);
         conf->keys = NULL;
         conf->keyslen = 0;
@@ -351,6 +382,28 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
         *keybind = str;
       }
     }
+  } else if (*token == tok_desktop_names) {
+
+    // "test1, test2" > "test1\0test2\0"
+
+    int argslen = splitlen(*args, " \t\n\r,");
+    char *strptr = splitstring(*args, " \t\n\r,");
+
+    char *desktopnames[argslen];
+
+    for (int i = 0; i < argslen; i++) {
+      // allocates memory because "args" may be freed
+      int strptrlen = strlen(strptr);
+      desktopnames[i] = malloc(sizeof(char *) * (strptrlen + 1));
+      memcpy(desktopnames[i], strptr, strptrlen);
+      desktopnames[i][strptrlen] = '\0';
+
+      strptr = splitstring(NULL, " \t\n\r,");
+    }
+
+    free(conf->desktop_names);
+    conf->desktop_names = malloc(sizeof(char *) * (argslen + 1));
+
   } else {
     // strtol returns 0 if it fails to find a number
     // so random rubbish will just be 0 (and is also valid xd)
@@ -368,7 +421,10 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
         conf->num_of_desktops = strtol(str, NULL, 10);
         break;
       case tok_resize_amount:
-        conf->resize_amount = strtol(str, NULL, 10);
+        conf->resize_amount = (strtol(str, NULL, 10))/100.0f;
+        break;
+      case tok_minimum_size:
+        conf->min_size = (strtol(str, NULL, 10));
         break;
       case tok_focused_border_color:
         conf->bord_foc_col = strtol(str, NULL, 16);
