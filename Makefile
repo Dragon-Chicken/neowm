@@ -1,4 +1,4 @@
-FLAGS=-O0 -Wall -Wextra
+FLAGS=-O3 -Wall -Wextra -Wpedantic
 PREFIX = /usr/local
 
 .PHONY: nwm nwmc
@@ -19,9 +19,8 @@ clean:
 
 install: build
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f nwm ${DESTDIR}${PREFIX}/bin
+	cp -f build/* ${DESTDIR}${PREFIX}/bin
 	chmod 755 ${DESTDIR}${PREFIX}/bin/nwm
-	cp -f nwmc ${DESTDIR}${PREFIX}/bin
 	chmod 755 ${DESTDIR}${PREFIX}/bin/nwmc
 
 uninstall:

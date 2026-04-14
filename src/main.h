@@ -15,6 +15,8 @@
 
 #define WM_NAME "nwm"
 
+#define BUTTONMASK (ButtonPressMask|ButtonReleaseMask)
+
 #define LENGTH(X) (int)(sizeof(X) / sizeof(X[0]))
 #define CLEANMASK(mask) (mask & ~(LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 
@@ -55,6 +57,7 @@ typedef struct Desktop {
   Client *floating;
   Client *focused;
   Client *tilefoc;
+  int active; // num of active windows on desktop
 } Desktop;
 
 typedef union Arg {
@@ -63,25 +66,29 @@ typedef union Arg {
 } Arg;
 
 typedef struct Key {
-  int mod;
+  unsigned int mod;
   KeySym keysym;
   int (*func)(Arg *);
   Arg args;
+  Bool btn;
 } Key;
 
 typedef struct Config {
-  int vgaps;
-  int hgaps;
-  int bord_size;
+  int vgaps; // in pixels
+  int hgaps; // in pixels
+  int bord_size; // in pixels
   int num_of_desktops;
   int keyslen;
+  int btnslen;
   int desktop_names_len;
-  int min_size;
-  double resize_amount;
+  int min_size; // in pixels
+  int move_amount; // in pixels
+  double resize_amount; // in percent (0.0 - 1.0)
   long bord_foc_col;
   long bord_nor_col;
   char *desktop_names;
   Key *keys;
+  Key *btns;
 } Config;
 
 
@@ -94,67 +101,85 @@ void printll(Client *c);
 
 // helpers
 void printerr(char *errstr);
-char keysymtostring(XKeyEvent *xkey);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
 void remapwins(void);
-void rebindkeys(void);
+void bindkeys(void);
 void unbindkeys(void);
+int grabbuttons(Client *c);
+int ungrabbuttons(Client *c);
+void setdesktops(void);
+void warptowin(Client *c);
 
 // events
 void voidevent(XEvent *);
 void keypress(XEvent *ev);
+void buttonpress(XEvent *ev);
+void buttonrelease(XEvent *ev);
+void motionnotify(XEvent *ev);
 void maprequest(XEvent *ev);
 void unmapnotify(XEvent *ev);
 void destroynotify(XEvent *ev);
 void enternotify(XEvent *ev);
 void focusin(XEvent *ev);
+void clientmessage(XEvent *ev);
 
 // client
 Client *createclient(void);
-void copyclientdata(Client *a, Client *b, Bool win, Bool path, Bool ab);
+void copyclient(Client *a, Client *b, Bool win, Bool pos, Bool path, Bool ab);
 unsigned int findpath(unsigned int path, int depth, Bool dir);
 Client *findclientindir(Client *incl, enum Dir dir);
-int mapwins(Client *c);
-void manage(Window w);
-// this is for a special case in unmanage()
+long getsizehints(Client *newc);
 int fixchildren(Client *c);
-void unmanage(Window destroywin);
+int addtoclientlist(Client *c, Window *wins, int numofwins);
 void createclientlist(void);
+int shouldmanage(Client *c);
+void manage(Window w);
+void unmanage(Window w);
 
 // linked list
+int loopll(Client *c, int (*func)(Client *));
 Client *findclientll(Client *c, Window win);
 int addtoll(Client *c, Client *newc);
-int floatclient(Arg *arg);
 Client *removefromll(Window w);
 
 // bsp
 int looptree(Client *c, int (*func)(Client *));
+int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
 Client *findclient(Client *c, Window win);
 int findclientpath(Client *c, Client **retc);
-int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
-int addtotree(Client *c, Client **newc);
+int addtotree(Client *newc, Client *headc, Client *focused);
+int attachnode(Client *c, Client **newc);
 Client *removefromtree(Window w);
+int tilewins(Client *c);
 
 // keypress
-int focusswitch(Arg *arg);
-int resizeclient(Arg *arg);
+int focuswindow(Arg *arg);
+int swapwindow(Arg *arg);
+int movewindow(Arg *arg);
+int dragmovewindow(Arg *arg);
+int dragresizewindow(Arg *arg);
+int resizetiled(Arg *arg);
+int resizewindow(Arg *arg);
 int focusdesktop(Arg *arg);
 int spawn(Arg *arg);
 int killfocused(Arg *);
-int exitwm(Arg *arg);
+int floattoggle(Arg *arg);
 int focustoggle(Arg *arg);
+int exitwm(Arg *arg);
 
 // x11
 int sendevent(Client *c, Atom proto);
 void setfocus(Client *c);
-void updatebordersll(Client *c);
 int updateborders(Client *c);
-int drawwins(Client *c);
+int mapwins(Client *c);
+int unmapwins(Client *c);
 
 // others
 void setup(void);
 void setupatoms(void);
 int xerror(Display *dpy, XErrorEvent *ee);
 int xerrordummy(Display *, XErrorEvent *);
+int xerrorstart(Display *dpy, XErrorEvent *ee);
+void checkotherwm(void);
 
 #endif
