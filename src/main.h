@@ -78,6 +78,7 @@ typedef struct Config {
   int hgaps; // in pixels
   int bord_size; // in pixels
   int num_of_desktops;
+  int refreshrate;
   int keyslen;
   int btnslen;
   int desktop_names_len;
@@ -139,7 +140,7 @@ void unmanage(Window w);
 // linked list
 int loopll(Client *c, int (*func)(Client *));
 Client *findclientll(Client *c, Window win);
-int addtoll(Client *c, Client *newc);
+int addtoll(Client **floating, Client *newc, Client *c);
 Client *removefromll(Window w);
 
 // bsp
@@ -147,7 +148,7 @@ int looptree(Client *c, int (*func)(Client *));
 int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
 Client *findclient(Client *c, Window win);
 int findclientpath(Client *c, Client **retc);
-int addtotree(Client *newc, Client *headc, Client *focused);
+int addtotree(Client *headc, Client *newc, Client *focused);
 int attachnode(Client *c, Client **newc);
 Client *removefromtree(Window w);
 int tilewins(Client *c);
@@ -161,6 +162,7 @@ int dragresizewindow(Arg *arg);
 int resizetiled(Arg *arg);
 int resizewindow(Arg *arg);
 int focusdesktop(Arg *arg);
+int movedesktop(Arg *arg);
 int spawn(Arg *arg);
 int killfocused(Arg *);
 int floattoggle(Arg *arg);

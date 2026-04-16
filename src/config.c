@@ -1,14 +1,8 @@
-#include <X11/Xutil.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <unistd.h>
 #include <pthread.h>
+#include <ctype.h>
 
-#include <X11/keysym.h>
 #include <X11/XF86keysym.h>
 
 #include "config.h"
@@ -178,13 +172,18 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   //printf("start bind\n");
   int mod = 0;
   KeySym keysym = 0;
-  Bool btn = False;
   int (*func)(Arg *) = NULL;
   Arg arg = {0};
+  Bool btn = False;
 
   // get the keybinds (super shfit q, alt enter, etc)
-  // ADD ENTER SUPPORT
+
+  for (int i = 0; keybind[i]; i++) {
+    keybind[i] = tolower(keybind[i]);
+  }
+
   char *strptr = splitstring(keybind, " \t\n\r");
+
   while (strptr != NULL) {
     //printf("[%s]\n", strptr);
 
@@ -206,26 +205,28 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     } else if (strcmp(strptr, "control") == 0 || strcmp(strptr, "ctrl") == 0) {
       mod |= ControlMask;
 
-    } else if (strcmp(strptr, "XF86AudioRaiseVolume") == 0) {
+    } else if (strcmp(strptr, "xf86audioraisevolume") == 0) {
       keysym = XF86XK_AudioRaiseVolume;
-    } else if (strcmp(strptr, "XF86AudioLowerVolume") == 0) {
+    } else if (strcmp(strptr, "xf86audiolowervolume") == 0) {
       keysym = XF86XK_AudioLowerVolume;
-    } else if (strcmp(strptr, "XF86AudioMute") == 0) {
+    } else if (strcmp(strptr, "xf86audiomute") == 0) {
       keysym = XF86XK_AudioMute;
-    } else if (strcmp(strptr, "Print") == 0) {
+    } else if (strcmp(strptr, "print") == 0) {
       keysym = XK_Print;
-    } else if (strcmp(strptr, "Space") == 0 || strcmp(strptr, "space") == 0) {
+    } else if (strcmp(strptr, "space") == 0) {
       keysym = XK_space;
+    } else if (strcmp(strptr, "enter") == 0) {
+      keysym = XK_Return;
 
-    } else if (strcmp(strptr, "Button1") == 0) {
+    } else if (strcmp(strptr, "button1") == 0) {
       keysym = Button1; btn = True;
-    } else if (strcmp(strptr, "Button2") == 0) {
+    } else if (strcmp(strptr, "button2") == 0) {
       keysym = Button2; btn = True;
-    } else if (strcmp(strptr, "Button3") == 0) {
+    } else if (strcmp(strptr, "button3") == 0) {
       keysym = Button3; btn = True;
-    } else if (strcmp(strptr, "Button4") == 0) {
+    } else if (strcmp(strptr, "button4") == 0) {
       keysym = Button4; btn = True;
-    } else if (strcmp(strptr, "Button5") == 0) {
+    } else if (strcmp(strptr, "button5") == 0) {
       keysym = Button5; btn = True;
     }
 
@@ -260,6 +261,8 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     func = resizewindow;
   } else if (strcmp(cmd, "focus_desktop") == 0) {
     func = focusdesktop;
+  } else if (strcmp(cmd, "move_desktop") == 0) {
+    func = movedesktop;
   } else {
     //printf("set none\n");
   }
@@ -418,8 +421,8 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     handlekeybind(str, keybind, cmd, args, &ret);
   } else if (*token == tok_desktop_names) {
 
-    int numofstr = splitlen(str, " \t\n\r,");
-    char *strptr = splitstring(str, " \t\n\r,");
+    int numofstr = splitlen(str, " \t\n\r");
+    char *strptr = splitstring(str, " \t\n\r");
     char **desktopnames = malloc(sizeof(char *) * numofstr);
 
     int desktopslen = 0;
@@ -430,19 +433,30 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
       memcpy(desktopnames[i], strptr, strptrlen);
       desktopnames[i][strptrlen] = '\0';
       desktopslen += strptrlen;
-      strptr = splitstring(NULL, " \t\n\r,");
+      strptr = splitstring(NULL, " \t\n\r");
     }
     conf->desktop_names = malloc(sizeof(char) * (desktopslen + numofstr + 1));
+
+    printf("conf->desktop_names len = %d\n", (desktopslen + numofstr + 1));
+    printf("desktopslen = %d\n", desktopslen);
 
     // copy into conf->desktop_names
     desktopslen = 0;
     for (int i = 0; i < numofstr; i++) {
       int strptrlen = strlen(desktopnames[i]);
+      printf("desktopnames[%d] = [%s]\n", i, desktopnames[i]);
+      printf("strptrlen = %d\n", strptrlen);
       strcpy(conf->desktop_names + desktopslen, desktopnames[i]);
+      printf("conf->desktop_names[%d] = [%s]\n", desktopslen, conf->desktop_names + desktopslen);
       desktopslen += strptrlen;
       conf->desktop_names[desktopslen] = '\0';
       desktopslen++;
+      printf("desktopslen = %d\n", desktopslen);
     }
+
+    printf("conf->desktop_names = [%s]\n", conf->desktop_names);
+    printf("desktopslen = %d\n", desktopslen);
+    printf("numofstr = %d\n", numofstr);
 
     conf->desktop_names_len = desktopslen;
     setdesktops();
@@ -526,6 +540,8 @@ int handleconnection(void) {
       issize = 0;
     } else {
       int datasize = getdata(s2, &done, size, &str);
+
+      printf("nwmc command:\n[%s]\n", str);
       // if the datasize is not what the client sent before
       // tell client to send the data again
       if (datasize != size && datasize != -1) {
@@ -596,6 +612,9 @@ void *serverthread(void *arg) {
 }
 
 int startserver(void) {
+#ifdef NWM_DEBUG
+  printf("startserver\n");
+#endif
   pthread_create(&server_thread, NULL, serverthread, NULL);
   close(s2);
   close(s);
@@ -603,6 +622,9 @@ int startserver(void) {
 }
 
 int killserver(void) {
+#ifdef NWM_DEBUG
+  printf("killserver\n");
+#endif
   if (!server_thread) {
     return 0;
   }

@@ -10,6 +10,7 @@ Cursor cursor;
 Window *wins;
 Desktop *desktops;
 long deski;
+int old_num_of_desktops;
 Config *conf;
 Display *dpy;
 Window root;
@@ -28,6 +29,8 @@ int mousex, mousey;
 int mxoff, myoff;
 
 int mousedrag = 0;
+int ignoreenter = 0;
+Time lasttime = 0;
 
 void (*handler[LASTEvent])(XEvent*);
 int (*xerrorxlib)(Display *, XErrorEvent *);
@@ -62,10 +65,12 @@ int printbsptree(Client *c) {
   }
   printf(" (%.8b), ", c->path);
   printf("win=%-8lx, d=%-4d", c->win, c->depth);
-  /*if (c->a)
-    printf(", a->path=%-8lb, a->win=%-8lx", c->a->path, c->a->win);
   if (c->a)
-    printf(", b->path=%-8lb, b->win=%-8lx", c->b->path, c->b->win);*/
+    printf(", a->path=%-8b, a->win=%-8lx", c->a->path, c->a->win);
+  if (c->a)
+    printf(", b->path=%-8b, b->win=%-8lx", c->b->path, c->b->win);
+  if (c->p)
+    printf(", p->path=%-8b, p->win=%-8lx", c->p->path, c->p->win);
   printf("\n");
 
   return SUC;
@@ -129,18 +134,21 @@ void remapwins(void) {
   looptree(desktops[deski].headc, updateborders);
   loopll(desktops[deski].floating, updateborders);
   XSync(dpy, False); // updates x11
+
+  printf("done\n");
 }
 
 void bindkeys(void) {
 #ifdef NWM_DEBUG
   printf("bindkeys\n");
 #endif
+
   for (int i = 0; i < conf->keyslen; i++) {
     XGrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod,
           root, True, GrabModeAsync, GrabModeAsync);
   }
 
-  for (int i = 0; i <= conf->num_of_desktops; i++) {
+  for (int i = 0; i < conf->num_of_desktops; i++) {
     looptree(desktops[i].headc, grabbuttons);
     loopll(desktops[i].floating, grabbuttons);
   }
@@ -150,12 +158,13 @@ void unbindkeys(void) {
 #ifdef NWM_DEBUG
   printf("unbindkeys\n");
 #endif
+
   for (int i = 0; i < conf->keyslen; i++) {
     XUngrabKey(dpy, XKeysymToKeycode(dpy, conf->keys[i].keysym), conf->keys[i].mod, root);
   }
 
 
-  for (int i = 0; i <= conf->num_of_desktops; i++) {
+  for (int i = 0; i < conf->num_of_desktops; i++) {
     looptree(desktops[i].headc, ungrabbuttons);
     loopll(desktops[i].floating, ungrabbuttons);
   }
@@ -194,28 +203,85 @@ void setdesktops(void) {
   printf("setdesktops\n");
 #endif
 
-  XChangeProperty(dpy, root, netatom[NetNumberOfDesktops], XA_CARDINAL, 32,
+  /*printf("num of desktops = %d\n", conf->num_of_desktops);
+  printf("old num of desktops = %d\n", old_num_of_desktops);*/
+
+  if (conf->num_of_desktops != old_num_of_desktops) {
+
+    if (conf->num_of_desktops < 1)
+      conf->num_of_desktops = 1;
+
+    Desktop *newdesktops = malloc(sizeof(Desktop) * conf->num_of_desktops);
+
+    if (desktops) {
+      if (conf->num_of_desktops > old_num_of_desktops) {
+        //printf("conf->num_of_desktops > old_num_of_desktops\n");
+        memcpy(newdesktops, desktops, sizeof(Desktop) * old_num_of_desktops);
+        //printf("?\n");
+        for (int i = old_num_of_desktops; i < conf->num_of_desktops; i++) {
+          newdesktops[i].headc = createclient();
+          newdesktops[i].floating = NULL;
+          newdesktops[i].focused = NULL;
+          newdesktops[i].tilefoc = NULL;
+          newdesktops[i].active = 0;
+        }
+        //printf("?\n");
+      } else {
+        //printf("NOT > conf->num_of_desktops > old_num_of_desktops\n");
+        memcpy(newdesktops, desktops, sizeof(Desktop) * conf->num_of_desktops);
+      }
+
+      free(desktops);
+    }
+
+    old_num_of_desktops = conf->num_of_desktops;
+    desktops = newdesktops;
+
+    //printf("done\n");
+
+    //focusdesktop(0);
+  }
+
+  /*for (int i = 0; i < conf->num_of_desktops; i++) {
+    if (desktops[i].headc)
+      printf("desktops[i].headc->win = %lx\n", desktops[i].headc->win);
+  }
+
+  printf("what\n");
+
+  printf("num of desktops = %d\n", conf->num_of_desktops);
+
+  printf("desktop names len = %d\n", conf->desktop_names_len);*/
+
+  /*XChangeProperty(dpy, root, netatom[NetNumberOfDesktops], XA_CARDINAL, 32,
       PropModeReplace, (const unsigned char *)&conf->num_of_desktops, 1);
   XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
-      PropModeReplace, (const unsigned char *)&deski, 1);
+      PropModeReplace, (const unsigned char *)&deski, 1);*/
   XChangeProperty(dpy, root, netatom[NetDesktopNames], utf8string, 8,
       PropModeReplace, (const unsigned char *)conf->desktop_names, conf->desktop_names_len);
 
   XSync(dpy, False); // updates x11
+
+  //printf("done 2\n");
 }
 
 void warptowin(Client *c) {
-  if (c)
+#ifdef NWM_DEBUG
+  printf("warptowin\n");
+#endif
+  if (c) {
+    ignoreenter = 1;
     XWarpPointer(dpy, None, root, 0, 0, 0, 0, c->x + (c->w/2), c->y + (c->h/2));
+  }
 }
 
 
 // events
 void voidevent(XEvent *ev) {
-  (void)ev;
 #ifdef NWM_DEBUG
   printf("(void event)\n");
 #endif
+  (void)ev;
 }
 
 void keypress(XEvent *ev) {
@@ -293,6 +359,10 @@ void motionnotify(XEvent *ev) {
 
   XMotionEvent *xmot = &ev->xmotion;
 
+  if ((xmot->time - lasttime) <= (1000 / 180))
+    return;
+  lasttime = xmot->time;
+
   mxoff = xmot->x_root - mousex;
   myoff = xmot->y_root - mousey;
   mousex = xmot->x_root;
@@ -300,14 +370,10 @@ void motionnotify(XEvent *ev) {
 
   Arg arg = {.i = 1};
 
-  switch (mousedrag) {
-    case 1:
-      dragmovewindow(&arg);
-      break;
-    case 2:
-      dragresizewindow(&arg);
-      break;
-  }
+  if (mousedrag == 1)
+    dragmovewindow(&arg);
+  if (mousedrag == 2)
+    dragresizewindow(&arg);
 }
 
 void maprequest(XEvent *ev) {
@@ -358,6 +424,11 @@ void enternotify(XEvent *ev) {
   if (desktops[deski].focused && ev->xcrossing.window == desktops[deski].focused->win)
     return;
 
+  if (ignoreenter) {
+    ignoreenter = 0;
+    return;
+  }
+
   Client *c = findclient(desktops[deski].headc, ev->xcrossing.window);
   if (!c) {
     // find client in floating linked list
@@ -378,7 +449,6 @@ void focusin(XEvent *ev) {
 #endif
 
   if (ev->xfocus.window == root) {
-    setfocus(NULL);
     return;
   }
 
@@ -392,7 +462,14 @@ void clientmessage(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(clientmessage)\n");
 #endif
-  (void)ev;
+
+  XClientMessageEvent *xclient = &ev->xclient;
+
+  // polybar sends these
+  if (xclient->message_type == netatom[NetCurrentDesktop]) {
+    //printf("new desktop = %ld\n", xclient->data.l[0]);
+    focusdesktop(&(Arg){xclient->data.l[0]});
+  }
 }
 
 
@@ -552,24 +629,24 @@ long getsizehints(Client *newc) {
 
 int fixchildren(Client *c) {
 #ifdef NWM_DEBUG
-printf("fixchildren\n");
+  printf("fixchildren\n");
 #endif
 
-if (!c)
-  return FAIL;
+  if (!c)
+    return FAIL;
 
-if (c->a) {
-  c->a->depth--;
-  c->a->path = c->path | (1 << (c->a->depth - 1));
-  c->a->p = c;
-}
-if (c->b) {
-  c->b->depth--;
-  c->b->path = c->path & ~(1 << (c->b->depth - 1));
-  c->b->p = c;
-}
+  if (c->a) {
+    c->a->depth--;
+    c->a->path = c->path | (1 << (c->a->depth - 1));
+    c->a->p = c;
+  }
+  if (c->b) {
+    c->b->depth--;
+    c->b->path = c->path & ~(1 << (c->b->depth - 1));
+    c->b->p = c;
+  }
 
-return SUC;
+  return SUC;
 }
 
 int addtoclientlist(Client *c, Window *wins, int numofwins) {
@@ -599,7 +676,7 @@ void createclientlist(void) {
 #endif
   //Window wins[totalwins];
 
-  if (wins != NULL)
+  if (!wins)
     free(wins);
   wins = malloc(sizeof(Window) * totalwins);
 
@@ -708,13 +785,14 @@ void manage(Window w) {
     }
     newc->x = screenw/2 - newc->w/2;
     newc->y = screenh/2 - newc->h/2;
-    addtoll(desktops[deski].floating, newc);
+    addtoll(&desktops[deski].floating, newc, desktops[deski].floating);
   // else add to tiling
-  } else if (!addtotree(newc, headc, focused)) {
+  } else if (!addtotree(headc, newc, focused)) {
     printerr("failed to add to tree\n");
     exitwm(NULL);
   }
 
+  desktops[deski].active++;
   // for some client list (ewmh)
   totalwins++;
   createclientlist();
@@ -737,15 +815,16 @@ void unmanage(Window w) {
     }
   }
 
-  if (c == desktops[deski].focused) {
+  /*if (c == desktops[deski].focused) {
     setfocus(c->p);
     warptowin(c->p);
-  }
+  }*/
 
   free(c);
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
 
+  desktops[deski].active--;
   totalwins--;
   createclientlist();
 }
@@ -781,7 +860,7 @@ Client *findclientll(Client *c, Window win) {
   return NULL;
 }
 
-int addtoll(Client *c, Client *newc) {
+int addtoll(Client **floating, Client *newc, Client *focused) {
 #ifdef NWM_DEBUG
   printf("addtoll\n");
 #endif
@@ -794,22 +873,22 @@ int addtoll(Client *c, Client *newc) {
   newc->b = NULL;
   newc->p = NULL;
 
-  if (!c) {
-    if (!desktops[deski].floating) {
-      desktops[deski].floating = newc;
+  if (!focused) {
+    if (!*floating) {
+      *floating = newc;
       mapwins(newc);
       return SUC;
     }
-    c = desktops[deski].floating;
+    focused = *floating;
   }
 
-  while (c->a)
-    c = c->a;
+  while (focused->a)
+    focused = focused->a;
 
   // a forward
   // b backward
-  c->a = newc;
-  newc->b = c;
+  focused->a = newc;
+  newc->b = focused;
 
   mapwins(newc); // just draws the new one
 
@@ -856,10 +935,15 @@ Client *removefromll(Window w) {
   }
 
   if (c == focused) {
-    if (c->b) {
-      setfocus(desktops[dt].focused);
+    if (c->b) { // b has been set to the right one
+      setfocus(c->a);
+      warptowin(c->a);
+    } else if (c->b) {
+      setfocus(c->b);
+      warptowin(c->b);
     } else {
       setfocus(desktops[dt].tilefoc);
+      warptowin(desktops[dt].tilefoc);
     }
   }
 
@@ -952,8 +1036,8 @@ int attachnode(Client *c, Client **newc) {
     c->b->depth++;
     c->a->path = c->a->path | (1 << c->depth);
     c->b->path = c->b->path & ~(1 << c->depth);
-    if (c == desktops[deski].focused)
-      desktops[deski].focused = *newc;
+    /*if (c == desktops[deski].focused)
+      desktops[deski].focused = *newc;*/
     c->a->p = c;
     c->b->p = c;
   } else {
@@ -965,7 +1049,7 @@ int attachnode(Client *c, Client **newc) {
   return SUC;
 }
 
-int addtotree(Client *newc, Client *headc, Client *focused) {
+int addtotree(Client *headc, Client *newc, Client *focused) {
   if (focused) {
     newc->path = focused->path;
     newc->depth = focused->depth;
@@ -980,7 +1064,9 @@ int addtotree(Client *newc, Client *headc, Client *focused) {
 #endif
     looptree(headc, tilewins);
     looptree(headc, mapwins);
+
     setfocus(newc);
+    warptowin(newc);
   } else {
     return FAIL;
   }
@@ -1021,8 +1107,12 @@ Client *removefromtree(Window w) {
   if (c == headc) {
     desktops[dt].headc = createclient();
     desktops[dt].focused = NULL;
-    setfocus(desktops[dt].focused);
+    desktops[dt].active = 0;
 
+    // doesn't need to call setfocus because it just needs to delete this property
+    //XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+    //desktops[deski].tilefoc = NULL; // also needs to set this
+    setfocus(desktops[dt].focused);
     return c; // caller should free this
   }
 
@@ -1053,16 +1143,23 @@ Client *removefromtree(Window w) {
 
   looptree(prevc, fixchildren);
 
-  if (c == focused)
+  if (c == focused) {
     setfocus(prevc);
+    warptowin(prevc);
+    if (prevc->win == c->win) {
+      exitwm(0);
+    }
+  }
 
   return c; // caller should free this
 }
 
 int tilewins(Client *c) {
 #ifdef NWM_DEBUG
-  printf("tilewins");
-  printf("mapping tree %ld\n", deski);
+  printf("tilewins\n");
+  //printf("tilling tree %ld\n", deski);
+
+  printf("tiling %lx\n", c->win);
 #endif
 
   if (c->p) {
@@ -1109,7 +1206,7 @@ int tilewins(Client *c) {
   if (c->w <= 0 || c->h <= 0) {
     printerr("width/height too small\n");
     removefromtree(c->win);
-    addtoll(desktops[deski].floating, c);
+    addtoll(&desktops[deski].floating, c, desktops[deski].floating);
   }
   return SUC;
 }
@@ -1123,10 +1220,13 @@ int focuswindow(Arg *arg) {
 
   Client *focused = desktops[deski].focused;
 
-  if (!focused || !focused->p || focused->floating)
+  if (!focused || focused->win == root || !focused->p || focused->floating)
     return FAIL;
 
   focused = findclientindir(focused, arg->i);
+
+  if (!focused)
+    return FAIL;
 
   //XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
 
@@ -1143,10 +1243,13 @@ int swapwindow(Arg *arg) {
 
   Client *focused = desktops[deski].focused;
 
-  if (!focused || !focused->p || focused->floating)
+  if (!focused || focused->win == root || !focused->p || focused->floating)
     return FAIL;
 
   Client *target = findclientindir(focused, arg->i);
+
+  if (!target)
+    return FAIL;
 
   Client temp;
   copyclient(&temp, focused, True, False, False, False);
@@ -1167,10 +1270,12 @@ int movewindow(Arg *arg) {
   printf("movewindow\n");
 #endif
   Client *c = desktops[deski].focused;
-  if (!c->floating) {
+  if (!c || !c->floating || c->win == root) {
     //printerr("not a floating window\n");
     return FAIL;
   }
+
+  ignoreenter = 1;
 
   switch (arg->i) {
     case dirup:
@@ -1203,9 +1308,11 @@ int dragmovewindow(Arg *arg) {
 
   Client *c = desktops[deski].focused;
 
-  if (!c) {
+  if (!c || c->win == root) {
     return FAIL;
   }
+
+  ignoreenter = 1;
 
   if (!c->floating) {
     floattoggle(0);
@@ -1229,12 +1336,25 @@ int dragresizewindow(Arg *arg) {
   }
 
   Client *c = desktops[deski].focused;
+
+  if (!c || c->win == root) {
+    return FAIL;
+  }
+
+  ignoreenter = 1;
+
   if (!c->floating) {
     floattoggle(0);
   }
 
   c->w += mxoff;
   c->h += myoff;
+
+  if (c->w <= conf->min_size)
+    c->w = conf->min_size;
+
+  if (c->h <= conf->min_size)
+    c->h = conf->min_size;
 
   mapwins(c);
 
@@ -1252,8 +1372,9 @@ int resizetiled(Arg *arg) {
   static int iters;
   static Client *focused;
 
-  if (iters == 0)
+  if (iters == 0) {
     focused = desktops[deski].focused;
+  }
 
   iters++;
 
@@ -1278,8 +1399,6 @@ int resizetiled(Arg *arg) {
     }
     focused = tempfoc;
   }
-
-  iters = 0;
 
   // actually resize
 
@@ -1312,8 +1431,14 @@ int resizetiled(Arg *arg) {
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
 
-  setfocus(focused);
-  warptowin(focused);
+  if (iters == 1) {
+    setfocus(focused);
+    warptowin(focused);
+  } else {
+    warptowin(desktops[deski].focused);
+  }
+
+  iters = 0;
   return SUC;
 }
 
@@ -1322,8 +1447,14 @@ int resizewindow(Arg *arg) {
   printf("resizewindow\n");
 #endif
 
-  if (desktops[deski].focused->floating) {
-    Client *c = desktops[deski].focused;
+  Client *c = desktops[deski].focused;
+
+  if (!c || c->win == root) {
+    return FAIL;
+  }
+
+
+  if (c->floating) {
     switch (arg->i) {
       case dirup:
         c->h -= conf->move_amount;
@@ -1345,6 +1476,7 @@ int resizewindow(Arg *arg) {
       c->h = conf->min_size;
 
     mapwins(c);
+    warptowin(c);
     return SUC;
   }
 
@@ -1378,11 +1510,70 @@ int focusdesktop(Arg *arg) {
   XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
       PropModeReplace, (const unsigned char *)&deski, 1);
 
+  // deletes just in case focused is null
+  //XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
   setfocus(desktops[deski].focused);
-  //warptowin(desktops[deski].focused);
+  warptowin(desktops[deski].focused);
 
   XUngrabServer(dpy);
   XSync(dpy, True);
+
+  return SUC;
+}
+
+int movedesktop(Arg *arg) {
+#ifdef NWM_DEBUG
+  printf("movedesktop\n");
+#endif
+  
+  if (arg->i >= conf->num_of_desktops)
+    return FAIL;
+  if (!desktops[deski].focused)
+    return FAIL;
+
+  Client *c = desktops[deski].focused;
+
+  if (c->floating) {
+    c = removefromll(c->win);
+  } else {
+    c = removefromtree(c->win);
+    looptree(desktops[deski].headc, tilewins);
+    //looptree(desktops[deski].headc, mapwins);
+
+    //desktops[deski].tilefoc = desktops[deski].focused;
+  }
+
+  if (!c)
+    return FAIL;
+
+  unmapwins(c);
+
+  //setfocus(desktops[deski].headc->a);
+  desktops[deski].active--;
+
+  looptree(desktops[deski].headc, printbsptree);
+
+  focusdesktop(arg); // moving to desktop
+
+  // need this to tell polybar which window this window is on
+  XChangeProperty(dpy, c->win, netatom[NetWMDesktop], XA_CARDINAL, 32,
+      PropModeReplace, (unsigned char *)&deski, 1);
+
+  c->path = 0;
+  c->depth = 0;
+  c->a = NULL;
+  c->b = NULL;
+  c->p = NULL;
+
+  if (c->floating) {
+    addtoll(&desktops[deski].floating, c, desktops[deski].floating);
+  } else {
+    addtotree(desktops[deski].headc, c, desktops[deski].tilefoc);
+  }
+
+  looptree(desktops[deski].headc, printbsptree);
+
+  createclientlist();
 
   return SUC;
 }
@@ -1424,7 +1615,7 @@ int killfocused(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("killfocused\n");
 #endif
-  if (!desktops[deski].focused)
+  if (!desktops[deski].focused || desktops[deski].focused->win == root)
     return FAIL;
 
   if (sendevent(desktops[deski].focused, wmatom[WMDelete]) == 0) {
@@ -1447,7 +1638,7 @@ int floattoggle(Arg *arg) {
 #endif
   (void)arg;
 
-  if (!desktops[deski].focused)
+  if (!desktops[deski].focused || desktops[deski].focused->win == root)
     return FAIL;
 
   Client *c;
@@ -1460,11 +1651,13 @@ int floattoggle(Arg *arg) {
       return FAIL;
 
     c->floating = False;
+    c->depth = 0;
+    c->path = 0;
     c->a = NULL;
     c->b = NULL;
     c->p = NULL;
 
-    addtotree(c, desktops[deski].headc, desktops[deski].tilefoc);
+    addtotree(desktops[deski].headc, c, desktops[deski].tilefoc);
 
   // tiled window
   } else {
@@ -1474,15 +1667,17 @@ int floattoggle(Arg *arg) {
       return FAIL;
 
     c->floating = True;
+    c->depth = 0;
+    c->path = 0;
     c->a = NULL;
     c->b = NULL;
     c->p = NULL;
 
-    addtoll(desktops[deski].floating, c);
+    addtoll(&desktops[deski].floating, c, desktops[deski].floating);
     mapwins(c);
   }
 
-  setfocus(c);
+  //setfocus(c);
   warptowin(c);
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
@@ -1498,7 +1693,7 @@ int focustoggle(Arg *arg) {
 
   Client *focused = desktops[deski].focused;
 
-  if (!focused)
+  if (!focused || focused->win == root)
     return FAIL;
 
   if (focused->floating) {
@@ -1566,10 +1761,16 @@ void setfocus(Client *c) {
   printf("setfocus\n");
 #endif
 
-  XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
 
   if (!c || c->win == root) {
+    printf("c is null\n");
+    XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
     return;
+  }
+
+  if (desktops[deski].focused == NULL && desktops[deski].active >= 1) {
+    printerr("focus is null\n");
+    exitwm(0);
   }
 
   desktops[deski].focused = c;
@@ -1698,47 +1899,14 @@ void setup(void) {
   conf->keys = malloc(sizeof(Key) * conf->keyslen);
   conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}, False};
 
-  /*conf->keys = malloc(sizeof(Key) * conf->keyslen);
-
-  conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("q"), exitwm, {0}};
-
-  arg = malloc(sizeof(char *) * 2);
-  arg[0] = "st";
-  arg[1] = NULL;
-  conf->keys[1] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}};
-
-  conf->keys[2] = (Key){Mod1Mask, XStringToKeysym("x"), killfocused, {0}};
-
-  arg = malloc(sizeof(char *) * 4);
-  arg[0] = "rofi";
-  arg[1] = "-show";
-  arg[2] = "drun";
-  arg[3] = NULL;
-  conf->keys[3] = (Key){Mod1Mask, XStringToKeysym("s"), spawn, {.s = arg}};
-
-  arg = malloc(sizeof(char *) * 2);
-  arg[0] = "polybar";
-  arg[1] = NULL;
-  conf->keys[4] = (Key){Mod1Mask, XStringToKeysym("d"), spawn, {.s = arg}};
-
-  conf->keys[5] = (Key){Mod1Mask, XStringToKeysym("h"), focusswitch, {0}};
-  conf->keys[6] = (Key){Mod1Mask, XStringToKeysym("l"), focusswitch, {1}};
-  conf->keys[7] = (Key){Mod1Mask, XStringToKeysym("j"), focusswitch, {2}};
-  conf->keys[8] = (Key){Mod1Mask, XStringToKeysym("k"), focusswitch, {3}};
-
-  conf->keys[11] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("k"), resizeclient, {0}};
-  conf->keys[10] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("j"), resizeclient, {1}};
-  conf->keys[9]  = (Key){Mod1Mask|ShiftMask, XStringToKeysym("h"), resizeclient, {2}};
-  conf->keys[12] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("l"), resizeclient, {3}};
-
-  conf->keys[13] = (Key){Mod1Mask, XStringToKeysym("1"), focusdesktop, {0}};
-  conf->keys[14] = (Key){Mod1Mask, XStringToKeysym("2"), focusdesktop, {1}};*/
 
   startserver();
 
   // desktops
   if (conf->num_of_desktops < 1)
     conf->num_of_desktops = 1;
+
+  old_num_of_desktops = conf->num_of_desktops;
 
   desktops = malloc(conf->num_of_desktops * sizeof(Desktop));
   deski = 0;
@@ -1748,10 +1916,11 @@ void setup(void) {
     desktops[i].floating = NULL;
     desktops[i].focused = NULL;
     desktops[i].tilefoc = NULL;
+    desktops[i].active = 0;
   }
 
-  conf->desktop_names = "1\0""2\0";
-  conf->desktop_names_len = 4;
+  conf->desktop_names = "a\0""b\0""c\0""d\0";
+  conf->desktop_names_len = 8;
   // you can't just do sizeof or strlen on the workspace names string
 
   // grab keys
@@ -1891,10 +2060,14 @@ int main(void) {
   setupatoms();
   xerrorxlib = XSetErrorHandler(xerror);
 
+#ifdef NWM_DEBUG
+  printf("\nEVENTS:\n");
+#endif
+
   for (;;) {
     XNextEvent(dpy, &ev);
 #ifdef NWM_DEBUG
-    printf("\nevent rec of type %d ", ev.type);
+    printf("\nevent recv of type %d ", ev.type);
 #endif
 
     handler[ev.type](&ev);
