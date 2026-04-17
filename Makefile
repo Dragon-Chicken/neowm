@@ -1,9 +1,12 @@
 FLAGS=-O3 -Wall -Wextra -Wpedantic
 PREFIX = /usr/local
 
-.PHONY: nwm nwmc
+.PHONY: nwm nwmc dir
 
-build: nwm nwmc
+build: dir nwm nwmc
+
+dir:
+	mkdir -p build
 
 nwm:
 	gcc $(FLAGS) -lpthread -lX11 -lXcursor src/*.c -o build/nwm

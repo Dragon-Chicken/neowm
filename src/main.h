@@ -74,16 +74,17 @@ typedef struct Key {
 } Key;
 
 typedef struct Config {
+  int refreshrate; // in fps
   int vgaps; // in pixels
   int hgaps; // in pixels
   int bord_size; // in pixels
   int num_of_desktops;
-  int refreshrate;
   int keyslen;
   int btnslen;
-  int desktop_names_len;
   int min_size; // in pixels
   int move_amount; // in pixels
+  int desktop_names_len;
+  double split_ratio; // in percent (0.0 to 1.0)
   double resize_amount; // in percent (0.0 - 1.0)
   long bord_foc_col;
   long bord_nor_col;
@@ -110,6 +111,7 @@ int grabbuttons(Client *c);
 int ungrabbuttons(Client *c);
 void setdesktops(void);
 void warptowin(Client *c);
+void checkwinsize(Client *c);
 
 // events
 void voidevent(XEvent *);
@@ -141,7 +143,7 @@ void unmanage(Window w);
 int loopll(Client *c, int (*func)(Client *));
 Client *findclientll(Client *c, Window win);
 int addtoll(Client **floating, Client *newc, Client *c);
-Client *removefromll(Window w);
+Client *removefromll(Window w, Bool warp);
 
 // bsp
 int looptree(Client *c, int (*func)(Client *));
@@ -150,7 +152,7 @@ Client *findclient(Client *c, Window win);
 int findclientpath(Client *c, Client **retc);
 int addtotree(Client *headc, Client *newc, Client *focused);
 int attachnode(Client *c, Client **newc);
-Client *removefromtree(Window w);
+Client *removefromtree(Window w, Bool warp);
 int tilewins(Client *c);
 
 // keypress

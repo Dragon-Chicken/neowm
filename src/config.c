@@ -12,6 +12,8 @@
 
 // xmacro btw
 #define CONFIG_COMMANDS \
+    TOK(refresh_rate) \
+    TOK(split_ratio) \
     TOK(vertical_gaps) \
     TOK(horizontal_gaps) \
     TOK(border_size) \
@@ -465,6 +467,12 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     // strtol returns 0 if it fails to find a number
     // so random rubbish will just be 0 (and is also valid xd)
     switch (*token) {
+      case tok_refresh_rate:
+        conf->refreshrate = strtol(str, NULL, 10);
+        break;
+      case tok_split_ratio:
+        conf->split_ratio = (strtol(str, NULL, 10))/100.0f;
+        break;
       case tok_vertical_gaps:
         conf->vgaps = strtol(str, NULL, 10);
         break;

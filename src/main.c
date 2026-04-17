@@ -134,8 +134,6 @@ void remapwins(void) {
   looptree(desktops[deski].headc, updateborders);
   loopll(desktops[deski].floating, updateborders);
   XSync(dpy, False); // updates x11
-
-  printf("done\n");
 }
 
 void bindkeys(void) {
@@ -237,8 +235,6 @@ void setdesktops(void) {
     old_num_of_desktops = conf->num_of_desktops;
     desktops = newdesktops;
 
-    //printf("done\n");
-
     //focusdesktop(0);
   }
 
@@ -261,8 +257,6 @@ void setdesktops(void) {
       PropModeReplace, (const unsigned char *)conf->desktop_names, conf->desktop_names_len);
 
   XSync(dpy, False); // updates x11
-
-  //printf("done 2\n");
 }
 
 void warptowin(Client *c) {
@@ -272,6 +266,23 @@ void warptowin(Client *c) {
   if (c) {
     ignoreenter = 1;
     XWarpPointer(dpy, None, root, 0, 0, 0, 0, c->x + (c->w/2), c->y + (c->h/2));
+  }
+}
+
+void checkwinsize(Client *c) {
+  if (c->w <= 0 || c->h <= 0) { // FIX THIS
+    printerr("width/height too small\n");
+    if (!c->floating)
+      removefromtree(c->win, False);
+
+    c->x = (screenw - swoff)/4;
+    c->y = (screenh - shoff)/4;
+    c->w = (screenw - swoff)/2;
+    c->h = (screenh - shoff)/2;
+
+    if (!c->floating)
+      addtoll(&desktops[deski].floating, c, desktops[deski].floating);
+    setfocus(c);
   }
 }
 
@@ -334,8 +345,7 @@ void buttonrelease(XEvent *ev) {
 #ifdef NWM_DEBUG
   printf("(buttonrelease)\n");
 #endif
-  (void)ev;
-  //XButtonEvent *xbtn = &ev->xbutton;
+  XButtonEvent *xbtn = &ev->xbutton;
 
 
   XUngrabPointer(dpy, CurrentTime);
@@ -343,6 +353,10 @@ void buttonrelease(XEvent *ev) {
 
   mxoff = 0;
   myoff = 0;
+  mousex = xbtn->x_root;
+  mousey = xbtn->y_root;
+
+  ignoreenter = 0;
 
   /*mxoff = xbtn->x_root - mousex;
   myoff = xbtn->y_root - mousey;*/
@@ -485,7 +499,7 @@ Client *createclient(void) {
   c->win = root;
   c->path = 0;
   c->depth = 0;
-  c->split = 0.5f;
+  c->split = conf->split_ratio;
   c->x = 0;
   c->y = 0;
   c->w = screenw;
@@ -786,6 +800,7 @@ void manage(Window w) {
     newc->x = screenw/2 - newc->w/2;
     newc->y = screenh/2 - newc->h/2;
     addtoll(&desktops[deski].floating, newc, desktops[deski].floating);
+    setfocus(newc);
   // else add to tiling
   } else if (!addtotree(headc, newc, focused)) {
     printerr("failed to add to tree\n");
@@ -807,9 +822,9 @@ void unmanage(Window w) {
   // nope there is a bug with focusing and maybe pointers to freed memory
 
   Client *c = NULL;
-  if ((c = removefromtree(w)) == NULL) {
+  if ((c = removefromtree(w, True)) == NULL) {
     //printerr("can't remove from tree\n");
-    if ((c = removefromll(w)) == NULL) {
+    if ((c = removefromll(w, True)) == NULL) {
       //printerr("can't remove from ll\n");
       return;
     }
@@ -895,13 +910,14 @@ int addtoll(Client **floating, Client *newc, Client *focused) {
   return SUC;
 }
 
-Client *removefromll(Window w) {
+Client *removefromll(Window w, Bool warp) {
 #ifdef NWM_DEBUG
   printf("removefromll\n");
 #endif
   Client *c = NULL;
   Client *floating = NULL;
   Client *focused = NULL;
+  Client *tilefoc = NULL;
   int dt = 0;
 
   for (dt = 0; dt < conf->num_of_desktops; dt++) {
@@ -909,12 +925,13 @@ Client *removefromll(Window w) {
     if (c) {
       floating = desktops[dt].floating;
       focused = desktops[dt].focused;
+      tilefoc = desktops[dt].tilefoc;
       break;
     }
   }
 
   if (!c) {
-    //printf("can't find window\n");
+    printf("can't find window\n");
     return NULL;
   }
 
@@ -924,6 +941,7 @@ Client *removefromll(Window w) {
   // check if has next
   if (c->a) {
     c->a->b = c->b;
+    printf("c->a->b = %lx\n", c->b->win);
   }
 
   // if head set head to next
@@ -932,19 +950,24 @@ Client *removefromll(Window w) {
     c->b = c->a; // CHANGES IT'S PREV CLIENT FOR FOCUSING
   } else {
     c->b->a = c->a;
+    printf("c->b->a = %lx\n", c->a->win);
   }
 
   if (c == focused) {
     if (c->b) { // b has been set to the right one
-      setfocus(c->a);
-      warptowin(c->a);
-    } else if (c->b) {
-      setfocus(c->b);
-      warptowin(c->b);
+      printf("c->b\n");
+      focused = c->b;
+    } else if (tilefoc) {
+      printf("tilefoc\n");
+      focused = tilefoc;
+      printf("tilefoc->win = %lx\n", tilefoc->win);
     } else {
-      setfocus(desktops[dt].tilefoc);
-      warptowin(desktops[dt].tilefoc);
+      printf("nothing to focus\n");
+      focused = NULL;
     }
+    setfocus(focused);
+    if (warp)
+      warptowin(focused);
   }
 
   return c;
@@ -1073,7 +1096,7 @@ int addtotree(Client *headc, Client *newc, Client *focused) {
   return SUC;
 }
 
-Client *removefromtree(Window w) {
+Client *removefromtree(Window w, Bool warp) {
 #ifdef NWM_DEBUG
   printf("removefromtree\n");
 #endif
@@ -1144,8 +1167,14 @@ Client *removefromtree(Window w) {
   looptree(prevc, fixchildren);
 
   if (c == focused) {
+    if (prevc->win == root) {
+      prevc = prevc->a;
+    }
     setfocus(prevc);
-    warptowin(prevc);
+
+    if (warp)
+      warptowin(prevc);
+
     if (prevc->win == c->win) {
       exitwm(0);
     }
@@ -1203,11 +1232,7 @@ int tilewins(Client *c) {
     }
   }
 
-  if (c->w <= 0 || c->h <= 0) {
-    printerr("width/height too small\n");
-    removefromtree(c->win);
-    addtoll(&desktops[deski].floating, c, desktops[deski].floating);
-  }
+  checkwinsize(c);
   return SUC;
 }
 
@@ -1514,6 +1539,7 @@ int focusdesktop(Arg *arg) {
   //XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
   setfocus(desktops[deski].focused);
   warptowin(desktops[deski].focused);
+  ignoreenter = 0; // need to set this
 
   XUngrabServer(dpy);
   XSync(dpy, True);
@@ -1534,9 +1560,9 @@ int movedesktop(Arg *arg) {
   Client *c = desktops[deski].focused;
 
   if (c->floating) {
-    c = removefromll(c->win);
+    c = removefromll(c->win, True);
   } else {
-    c = removefromtree(c->win);
+    c = removefromtree(c->win, True);
     looptree(desktops[deski].headc, tilewins);
     //looptree(desktops[deski].headc, mapwins);
 
@@ -1551,7 +1577,7 @@ int movedesktop(Arg *arg) {
   //setfocus(desktops[deski].headc->a);
   desktops[deski].active--;
 
-  looptree(desktops[deski].headc, printbsptree);
+  //looptree(desktops[deski].headc, printbsptree);
 
   focusdesktop(arg); // moving to desktop
 
@@ -1566,12 +1592,15 @@ int movedesktop(Arg *arg) {
   c->p = NULL;
 
   if (c->floating) {
+    printf("a\n");
     addtoll(&desktops[deski].floating, c, desktops[deski].floating);
+    setfocus(c);
+    printf("b\n");
   } else {
     addtotree(desktops[deski].headc, c, desktops[deski].tilefoc);
   }
 
-  looptree(desktops[deski].headc, printbsptree);
+  //looptree(desktops[deski].headc, printbsptree);
 
   createclientlist();
 
@@ -1645,7 +1674,7 @@ int floattoggle(Arg *arg) {
 
   // floating window
   if (desktops[deski].focused->floating) {
-    c = removefromll(desktops[deski].focused->win);
+    c = removefromll(desktops[deski].focused->win, False);
 
     if (!c)
       return FAIL;
@@ -1661,7 +1690,7 @@ int floattoggle(Arg *arg) {
 
   // tiled window
   } else {
-    c = removefromtree(desktops[deski].focused->win);
+    c = removefromtree(desktops[deski].focused->win, False);
 
     if (!c)
       return FAIL;
@@ -1677,8 +1706,10 @@ int floattoggle(Arg *arg) {
     mapwins(c);
   }
 
-  //setfocus(c);
-  warptowin(c);
+  //ignoreenter = 1;
+
+  setfocus(c);
+  //warptowin(c);
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
   return SUC;
@@ -1765,6 +1796,8 @@ void setfocus(Client *c) {
   if (!c || c->win == root) {
     printf("c is null\n");
     XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+    desktops[deski].tilefoc = NULL;
+    desktops[deski].focused = NULL; // maybe shouldn't set this
     return;
   }
 
@@ -1816,6 +1849,8 @@ int mapwins(Client *c) {
 
   if (c->win == root)
     return FAIL;
+
+  checkwinsize(c);
 
 #ifdef NWM_DEBUG
   printf("win: path=%-8b, win=%-8lx, x=%-4d, y=%-4d, w=%-4d, h=%-4d\n",
@@ -1880,15 +1915,23 @@ void setup(void) {
     .keyslen = 15,
   };*/
   *conf = (Config){
+    .refreshrate = 60,
     .vgaps = 0,
     .hgaps = 0,
     .bord_size = 2,
+    .num_of_desktops = 5,
+    .keyslen = 1,
+    .btnslen = 0,
+    .min_size = 50,
+    .move_amount = 20,
+    .desktop_names_len = 0,
+    .split_ratio = 0.5f,
+    .resize_amount = 0.05f,
     .bord_foc_col = 0xffeeeeee,
     .bord_nor_col = 0xff333333,
-    .num_of_desktops = 5,
-    .resize_amount = 0.05f,
-    .min_size = 50.0f,
-    .keyslen = 1,
+    .desktop_names = NULL,
+    .keys = NULL,
+    .btns = NULL,
   };
   conf->keys = NULL;
 
@@ -2071,8 +2114,6 @@ int main(void) {
 #endif
 
     handler[ev.type](&ev);
-
-    //printf("done\n");
   }
 
   printerr("exiting with no errors\n");
