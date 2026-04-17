@@ -74,7 +74,7 @@ typedef struct Key {
 } Key;
 
 typedef struct Config {
-  int refreshrate; // in fps
+  unsigned int refreshrate; // in fps
   int vgaps; // in pixels
   int hgaps; // in pixels
   int bord_size; // in pixels

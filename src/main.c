@@ -373,7 +373,7 @@ void motionnotify(XEvent *ev) {
 
   XMotionEvent *xmot = &ev->xmotion;
 
-  if ((xmot->time - lasttime) <= (1000 / 180))
+  if ((xmot->time - lasttime) <= (1000 / conf->refreshrate))
     return;
   lasttime = xmot->time;
 
