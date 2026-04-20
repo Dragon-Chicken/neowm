@@ -31,7 +31,7 @@ int getret(int s) {
   int len;
 
   char str[2];
-  
+
   if ((len=recv(s, str, sizeof(str), 0)) > 0) {
   } else {
     if (len < 0)
