@@ -236,7 +236,7 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
 
     strptr = splitstring(NULL, " \t\n\r");
   }
-  
+
   //printf("cmd = [%s]\n", cmd);
 
   // get the command (spawn, exitwm, kill_window, etc)
@@ -415,7 +415,7 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     }
     CONFIG_COMMANDS
 #undef TOK
-    
+
     // the above should have set the right token
     // if it couldn't get it then the token is invalid
     if (*token == tok_none) {

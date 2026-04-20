@@ -125,7 +125,7 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
   unsigned char *p = NULL;
   Atom da;
 
-  // XGetWindowProperty returns 
+  // XGetWindowProperty returns
   if (XGetWindowProperty(dpy, c->win, prop, 0L, retatomlen, False, proptype,
       &da, &format, &nitems, &dl, &p) == Success && p) {
 
@@ -1552,7 +1552,7 @@ int focusdesktop(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("switching desktops...\n");
 #endif
-  
+
   if (arg->i >= conf->num_of_desktops) {
     printerr("can't focus desktop (out of range)\n");
     return FAIL;
@@ -1591,7 +1591,7 @@ int movedesktop(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("movedesktop\n");
 #endif
-  
+
   if (arg->i >= conf->num_of_desktops)
     return FAIL;
   if (!desktops[deski].focused)
