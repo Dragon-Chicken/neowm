@@ -97,6 +97,22 @@ void printerr(char *errstr) {
   printf("%s: error: %s", WM_NAME, errstr);
 }
 
+char *catstr(char *a, char *b) {
+  int sizeofa = strlen(a);
+  int sizeofb = strlen(b);
+
+  char *retstr = NULL;
+
+  retstr = malloc(sizeof(char) * (sizeofa + sizeofb + 1));
+  memcpy(retstr, a, sizeofa);
+  retstr[sizeofa] = 0; // making sure it's 0 (it really isn't needed because the memcpy includes it)
+
+  strcat(retstr, b);
+  retstr[sizeofa + sizeofb] = 0;
+
+  return retstr;
+}
+
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype) {
 #ifdef NWM_DEBUG
   printf("getwinprop\n");
@@ -439,6 +455,7 @@ void enternotify(XEvent *ev) {
     return;
 
   if (ignoreenter) {
+    printf("ignored\n");
     ignoreenter = 0;
     return;
   }
@@ -940,17 +957,19 @@ Client *removefromll(Window w, Bool warp) {
   //
   // check if has next
   if (c->a) {
+    //printf("c->a\n");
     c->a->b = c->b;
-    printf("c->a->b = %lx\n", c->b->win);
+    //printf("c->a->b = %lx\n", c->b->win);
   }
 
   // if head set head to next
   if (c == floating) {
+    //printf("c == floating\n");
     desktops[dt].floating = c->a;
     c->b = c->a; // CHANGES IT'S PREV CLIENT FOR FOCUSING
   } else {
     c->b->a = c->a;
-    printf("c->b->a = %lx\n", c->a->win);
+    //printf("c->b->a = %lx\n", c->a->win);
   }
 
   if (c == focused) {
@@ -1322,6 +1341,27 @@ int movewindow(Arg *arg) {
   return SUC;
 }
 
+int centerwindow(Arg *arg) {
+#ifdef NWM_DEBUG
+  printf("centerwindow\n");
+#endif
+  (void)arg;
+
+  Client *c = desktops[deski].focused;
+  if (!c || !c->floating || c->win == root) {
+    //printerr("not a floating window\n");
+    return FAIL;
+  }
+
+  c->x = (screenw - swoff)/2 - c->w/2 - conf->bord_size;
+  c->y = (screenh - shoff)/2 - c->h/2 - conf->bord_size;
+
+  mapwins(c);
+  warptowin(c);
+
+  return SUC;
+}
+
 int dragmovewindow(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("dragwindow\n");
@@ -1675,35 +1715,29 @@ int floattoggle(Arg *arg) {
   // floating window
   if (desktops[deski].focused->floating) {
     c = removefromll(desktops[deski].focused->win, False);
-
     if (!c)
       return FAIL;
-
     c->floating = False;
     c->depth = 0;
     c->path = 0;
     c->a = NULL;
     c->b = NULL;
     c->p = NULL;
-
     addtotree(desktops[deski].headc, c, desktops[deski].tilefoc);
 
   // tiled window
   } else {
     c = removefromtree(desktops[deski].focused->win, False);
-
     if (!c)
       return FAIL;
-
     c->floating = True;
     c->depth = 0;
     c->path = 0;
     c->a = NULL;
     c->b = NULL;
     c->p = NULL;
-
     addtoll(&desktops[deski].floating, c, desktops[deski].floating);
-    mapwins(c);
+    //mapwins(c);
   }
 
   //ignoreenter = 1;
@@ -1730,8 +1764,10 @@ int focustoggle(Arg *arg) {
   if (focused->floating) {
     if (focused->a)
       focused = focused->a;
-    else
+    else if (desktops[deski].tilefoc)
       focused = desktops[deski].tilefoc;
+    else // if no next floating and no tilefoc then last resort is doing this
+      focused = desktops[deski].floating;
   } else if (desktops[deski].floating) {
     focused = desktops[deski].floating;
   }
@@ -1794,7 +1830,7 @@ void setfocus(Client *c) {
 
 
   if (!c || c->win == root) {
-    printf("c is null\n");
+    printf("c is null or root\n");
     XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
     desktops[deski].tilefoc = NULL;
     desktops[deski].focused = NULL; // maybe shouldn't set this
@@ -1833,9 +1869,9 @@ int updateborders(Client *c) {
 
   XSetWindowBorderWidth(dpy, c->win, conf->bord_size);
   if (!c->floating)
-    XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
+    XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_col));
   else
-    XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? 0xff0000 : 0x00ff00));
+    XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col_float : conf->bord_col_float));
     //XSetWindowBorder(dpy, c->win, (c == desktops[deski].focused ? conf->bord_foc_col : conf->bord_nor_col));
   return SUC;
 }
@@ -1871,6 +1907,77 @@ int unmapwins(Client *c) {
 
 
 // others
+int loadconfig(void) {
+  // get xdg_config_home
+
+  int xdgmalloced = 0;
+  char *home = NULL;
+  char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+
+  //printf("xdg_config_home = [%s]\n", xdg_config_home);
+
+  if (!xdg_config_home) {
+    printerr("$XDG_CONFIG_HOME is not set\nusing $HOME/.config/ instead\n");
+
+    home = getenv("HOME");
+    //printf("home = [%s]\n", getenv("HOME"));
+    xdgmalloced = 1; // so we know to free it
+    xdg_config_home = catstr(home, "/.config");
+  }
+
+  // now add /nwm/nwm.conf to the end of xdg_config_home
+
+  xdg_config_home = catstr(xdg_config_home, "/nwm");
+
+  {
+    struct stat st = {0};
+    if (stat(xdg_config_home, &st) == -1) {
+      printerr("config directory does not exist\ncreating directory\n");
+      mkdir(xdg_config_home, 0700);
+    }
+  }
+
+
+  char *configpath = catstr(xdg_config_home, "/nwm.conf");
+  char *startuppath = catstr(xdg_config_home, "/startup");
+
+  if (xdgmalloced)
+    free(xdg_config_home);
+
+  printf("configpath = [%s]\n", configpath);
+  printf("startuppath = [%s]\n", startuppath);
+
+  char **arg;
+
+  int ret = 0;
+
+  // startup
+  if (access(startuppath, F_OK) == 0) {
+    arg = malloc(sizeof(char *) * 2);
+    arg[0] = startuppath;
+    arg[1] = NULL;
+    spawn(&(Arg){.s = arg});
+    free(arg);
+  } else {
+    printerr("startup file does not exist please create a startup file\n");
+    ret = 1;
+  }
+
+  // config
+  if (access(configpath, F_OK) == 0) {
+    arg = malloc(sizeof(char *) * 2);
+    arg[0] = configpath;
+    arg[1] = NULL;
+    spawn(&(Arg){.s = arg});
+    free(arg);
+  } else {
+    printerr("config file does not exist please create a config file\n");
+    ret = 1;
+  }
+
+  return ret;
+}
+
 void setup(void) {
 #ifdef NWM_DEBUG
   printf("setup\n");
@@ -1920,7 +2027,7 @@ void setup(void) {
     .hgaps = 0,
     .bord_size = 2,
     .num_of_desktops = 5,
-    .keyslen = 1,
+    .keyslen = 3,
     .btnslen = 0,
     .min_size = 50,
     .move_amount = 20,
@@ -1928,20 +2035,25 @@ void setup(void) {
     .split_ratio = 0.5f,
     .resize_amount = 0.05f,
     .bord_foc_col = 0xffeeeeee,
-    .bord_nor_col = 0xff333333,
+    .bord_col = 0xff333333,
+    .bord_foc_col_float = 0xffeeeeee,
+    .bord_col_float = 0xff333333,
     .desktop_names = NULL,
     .keys = NULL,
     .btns = NULL,
   };
   conf->keys = NULL;
 
+  conf->keys = malloc(sizeof(Key) * conf->keyslen);
+
   char **arg;
   arg = malloc(sizeof(char *) * 2);
   arg[0] = "st";
   arg[1] = NULL;
-  conf->keys = malloc(sizeof(Key) * conf->keyslen);
-  conf->keys[0] = (Key){Mod1Mask, XStringToKeysym("a"), spawn, {.s = arg}, False};
+  conf->keys[0] = (Key){Mod1Mask, XK_Return, spawn, {.s = arg}, False};
 
+  conf->keys[1] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("q"), exitwm, {.i = 0}, False};
+  conf->keys[2] = (Key){Mod1Mask, XStringToKeysym("q"), killfocused, {.i = 0}, False};
 
   startserver();
 
@@ -1974,18 +2086,21 @@ void setup(void) {
     }
   }
 
-  // startup script
-  arg = malloc(sizeof(char *) * 2);
-  arg[0] = "/home/ethan/neowm/startup";
-  arg[1] = NULL;
-  spawn(&(Arg){.s = arg});
-  free(arg);
+  if (loadconfig() != 0) {
+    printerr("failed to load config loading from repo path\n");
 
-  arg = malloc(sizeof(char *) * 2);
-  arg[0] = "/home/ethan/neowm/nwm.conf";
-  arg[1] = NULL;
-  spawn(&(Arg){.s = arg});
-  free(arg);
+    arg = malloc(sizeof(char *) * 2);
+    arg[0] = "/home/ethan/neowm/nwm.conf";
+    arg[1] = NULL;
+    spawn(&(Arg){.s = arg});
+    free(arg);
+
+    arg = malloc(sizeof(char *) * 2);
+    arg[0] = "/home/ethan/neowm/startup";
+    arg[1] = NULL;
+    spawn(&(Arg){.s = arg});
+    free(arg);
+  }
 }
 
 void setupatoms(void) {

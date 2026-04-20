@@ -5,8 +5,8 @@
 
 #include <X11/XF86keysym.h>
 
-#include "config.h"
 #include "main.h"
+#include "config.h"
 
 #define SOCK_PATH "/tmp/nwmc_socket"
 
@@ -23,7 +23,9 @@
     TOK(resize_amount) \
     TOK(move_amount) \
     TOK(focused_border_color) \
-    TOK(normal_border_color) \
+    TOK(border_color) \
+    TOK(focused_border_color_floating) \
+    TOK(border_color_floating) \
     TOK(bind)
 
 typedef enum Token {
@@ -255,6 +257,8 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     func = swapwindow;
   } else if (strcmp(cmd, "move_window") == 0) {
     func = movewindow;
+  } else if (strcmp(cmd, "center_window") == 0) {
+    func = centerwindow;
   } else if (strcmp(cmd, "drag_move_window") == 0) {
     func = dragmovewindow;
   } else if (strcmp(cmd, "drag_resize_window") == 0) {
@@ -498,8 +502,14 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
       case tok_focused_border_color:
         conf->bord_foc_col = strtol(str, NULL, 16);
         break;
-      case tok_normal_border_color:
-        conf->bord_nor_col = strtol(str, NULL, 16);
+      case tok_border_color:
+        conf->bord_col = strtol(str, NULL, 16);
+        break;
+      case tok_focused_border_color_floating:
+        conf->bord_foc_col_float = strtol(str, NULL, 16);
+        break;
+      case tok_border_color_floating:
+        conf->bord_col_float = strtol(str, NULL, 16);
         break;
 
       default: // just here to hide the "enumeration value not handled" warning

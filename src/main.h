@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <signal.h>
 
+// try to get rid of these
+#include <sys/stat.h>
+
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -87,7 +90,9 @@ typedef struct Config {
   double split_ratio; // in percent (0.0 to 1.0)
   double resize_amount; // in percent (0.0 - 1.0)
   long bord_foc_col;
-  long bord_nor_col;
+  long bord_col;
+  long bord_foc_col_float;
+  long bord_col_float;
   char *desktop_names;
   Key *keys;
   Key *btns;
@@ -103,6 +108,7 @@ void printll(Client *c);
 
 // helpers
 void printerr(char *errstr);
+char *catstr(char *a, char *b);
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
 void remapwins(void);
 void bindkeys(void);
@@ -159,6 +165,7 @@ int tilewins(Client *c);
 int focuswindow(Arg *arg);
 int swapwindow(Arg *arg);
 int movewindow(Arg *arg);
+int centerwindow(Arg *arg);
 int dragmovewindow(Arg *arg);
 int dragresizewindow(Arg *arg);
 int resizetiled(Arg *arg);
