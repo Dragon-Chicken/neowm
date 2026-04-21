@@ -1,5 +1,6 @@
 #include "main.h"
 #include "config.h"
+#include "memory.h"
 
 Atom wmatom[WMLast];
 Atom netatom[NetLast];
@@ -103,7 +104,7 @@ char *catstr(char *a, char *b) {
 
   char *retstr = NULL;
 
-  retstr = malloc(sizeof(char) * (sizeofa + sizeofb + 1));
+  retstr = debug_malloc(sizeof(char) * (sizeofa + sizeofb + 1));
   memcpy(retstr, a, sizeofa);
   retstr[sizeofa] = 0; // making sure it's 0 (it really isn't needed because the memcpy includes it)
 
@@ -225,7 +226,7 @@ void setdesktops(void) {
     if (conf->num_of_desktops < 1)
       conf->num_of_desktops = 1;
 
-    Desktop *newdesktops = malloc(sizeof(Desktop) * conf->num_of_desktops);
+    Desktop *newdesktops = debug_malloc(sizeof(Desktop) * conf->num_of_desktops);
 
     if (desktops) {
       if (conf->num_of_desktops > old_num_of_desktops) {
@@ -245,7 +246,7 @@ void setdesktops(void) {
         memcpy(newdesktops, desktops, sizeof(Desktop) * conf->num_of_desktops);
       }
 
-      free(desktops);
+      debug_free(desktops);
     }
 
     old_num_of_desktops = conf->num_of_desktops;
@@ -509,7 +510,7 @@ Client *createclient(void) {
 #ifdef NWM_DEBUG
   printf("createclient\n");
 #endif
-  Client *c = (Client *)malloc(sizeof(Client));
+  Client *c = (Client *)debug_malloc(sizeof(Client));
   c->a = NULL;
   c->b = NULL;
   c->p = NULL;
@@ -707,9 +708,9 @@ void createclientlist(void) {
 #endif
   //Window wins[totalwins];
 
-  if (!wins)
-    free(wins);
-  wins = malloc(sizeof(Window) * totalwins);
+  if (wins)
+    debug_free(wins);
+  wins = debug_malloc(sizeof(Window) * totalwins);
 
   int numofwins = 0;
   for (int i = 0; i < conf->num_of_desktops; i++) {
@@ -742,6 +743,9 @@ void createclientlist(void) {
 }
 
 int shouldmanage(Client *c) {
+#ifdef NWM_DEBUG
+  printf("shouldmanage\n");
+#endif
   // this function returns FAIL on success
   Atom wtype;
   if (!getwinprop(c, netatom[NetWMWindowType], &wtype, 1, XA_ATOM) ||
@@ -784,7 +788,7 @@ void manage(Window w) {
 
   // check window type (normal, docks...)
   if (!shouldmanage(newc)) {
-    free(newc);
+    debug_free(newc);
     return;
   }
 
@@ -852,7 +856,7 @@ void unmanage(Window w) {
     warptowin(c->p);
   }*/
 
-  free(c);
+  debug_free(c);
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
 
@@ -1063,7 +1067,7 @@ int findclientpath(Client *c, Client **retc) {
 
 int attachnode(Client *c, Client **newc) {
 #ifdef NWM_DEBUG
-  printf("addtotree\n");
+  printf("attachnode\n");
 #endif
   if (!c) {
     printerr("c is null\n");
@@ -1084,7 +1088,7 @@ int attachnode(Client *c, Client **newc) {
     c->b->p = c;
   } else {
     copyclient(c, *newc, True, True, True, False);
-    free(*newc);
+    debug_free(*newc);
     c->p = NULL;
     *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
   }
@@ -1092,6 +1096,10 @@ int attachnode(Client *c, Client **newc) {
 }
 
 int addtotree(Client *headc, Client *newc, Client *focused) {
+#ifdef NWM_DEBUG
+  printf("addtotree\n");
+#endif
+
   if (focused) {
     newc->path = focused->path;
     newc->depth = focused->depth;
@@ -1177,11 +1185,16 @@ Client *removefromtree(Window w, Bool warp) {
     exitwm(NULL);
   }
 
+  Client *tofree = NULL;
   if (prevc->a == c) {
+    tofree = prevc->b;
     copyclient(prevc, prevc->b, True, True, False, True);
   } else {
+    tofree = prevc->a;
     copyclient(prevc, prevc->a, True, True, False, True);
   }
+
+  debug_free(tofree);
 
   looptree(prevc, fixchildren);
 
@@ -1658,6 +1671,7 @@ int spawn(Arg *arg) {
 #ifdef NWM_DEBUG
   printf("spawning: [%s]\n", arg->s[0]);
 #endif
+  //printf("\n#####\nspawn\n#####\n");
 
   struct sigaction sa;
 
@@ -1925,9 +1939,14 @@ int loadconfig(void) {
     xdg_config_home = catstr(home, "/.config");
   }
 
-  // now add /nwm/nwm.conf to the end of xdg_config_home
+  // catstr doesn't free so have to keep this
+  char *freestr = xdg_config_home;
 
+  // now add /nwm/nwm.conf to the end of xdg_config_home
   xdg_config_home = catstr(xdg_config_home, "/nwm");
+
+  if (xdgmalloced)
+    debug_free(freestr);
 
   {
     struct stat st = {0};
@@ -1937,12 +1956,11 @@ int loadconfig(void) {
     }
   }
 
-
   char *configpath = catstr(xdg_config_home, "/nwm.conf");
   char *startuppath = catstr(xdg_config_home, "/startup");
 
   if (xdgmalloced)
-    free(xdg_config_home);
+    debug_free(xdg_config_home);
 
   printf("configpath = [%s]\n", configpath);
   printf("startuppath = [%s]\n", startuppath);
@@ -1953,11 +1971,11 @@ int loadconfig(void) {
 
   // startup
   if (access(startuppath, F_OK) == 0) {
-    arg = malloc(sizeof(char *) * 2);
+    arg = debug_malloc(sizeof(char *) * 2);
     arg[0] = startuppath;
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    free(arg);
+    debug_free(arg);
   } else {
     printerr("startup file does not exist please create a startup file\n");
     ret = 1;
@@ -1965,15 +1983,18 @@ int loadconfig(void) {
 
   // config
   if (access(configpath, F_OK) == 0) {
-    arg = malloc(sizeof(char *) * 2);
+    arg = debug_malloc(sizeof(char *) * 2);
     arg[0] = configpath;
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    free(arg);
+    debug_free(arg);
   } else {
     printerr("config file does not exist please create a config file\n");
     ret = 1;
   }
+
+  debug_free(startuppath);
+  debug_free(configpath);
 
   return ret;
 }
@@ -2010,7 +2031,7 @@ void setup(void) {
   handler[FocusIn] = focusin;
   handler[ClientMessage] = clientmessage;
 
-  conf = malloc(sizeof(Config));
+  conf = debug_malloc(sizeof(Config));
   /**conf = (Config){
     .vgaps = 20,
     .hgaps = 20,
@@ -2046,9 +2067,12 @@ void setup(void) {
 
   conf->keys = malloc(sizeof(Key) * conf->keyslen);
 
+  char *st = malloc(sizeof(char) * 3);
+  st = "st";
+
   char **arg;
   arg = malloc(sizeof(char *) * 2);
-  arg[0] = "st";
+  arg[0] = st;
   arg[1] = NULL;
   conf->keys[0] = (Key){Mod1Mask, XK_Return, spawn, {.s = arg}, False};
 
@@ -2063,7 +2087,7 @@ void setup(void) {
 
   old_num_of_desktops = conf->num_of_desktops;
 
-  desktops = malloc(conf->num_of_desktops * sizeof(Desktop));
+  desktops = debug_malloc(conf->num_of_desktops * sizeof(Desktop));
   deski = 0;
 
   for (int i = 0; i < conf->num_of_desktops; i++) {
@@ -2089,17 +2113,17 @@ void setup(void) {
   if (loadconfig() != 0) {
     printerr("failed to load config loading from repo path\n");
 
-    arg = malloc(sizeof(char *) * 2);
+    arg = debug_malloc(sizeof(char *) * 2);
     arg[0] = "/home/ethan/neowm/nwm.conf";
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    free(arg);
+    debug_free(arg);
 
-    arg = malloc(sizeof(char *) * 2);
+    arg = debug_malloc(sizeof(char *) * 2);
     arg[0] = "/home/ethan/neowm/startup";
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    free(arg);
+    debug_free(arg);
   }
 }
 

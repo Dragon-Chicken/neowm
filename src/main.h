@@ -28,7 +28,7 @@
 #define FAIL 0
 #define SUC 1
 
-#define NWM_DEBUG
+//#define NWM_DEBUG
 
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; // wmatom
 enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,

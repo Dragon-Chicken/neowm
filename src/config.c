@@ -172,15 +172,29 @@ int splitlen(char *s, char *delim) {
   return tokens;
 }
 
+void deletekeys() { // check this
+  for (int i = 0; i <= conf->keyslen; i++) {
+    if (conf->keys[i].func == spawn) {
+      //debug_free(key->args.s[0], "Config, Key*, char* conf->keys[i].args.s[0]");
+      for (int j = 0; conf->keys[i].args.s[j] != NULL; j++) {
+        free(conf->keys[i].args.s[0]);
+      }
+
+      //debug_free(key->args.s);
+    }
+  }
+  free(conf->keys);
+
+  /*printf("bye bye\n");
+  exitwm(0);*/
+}
+
 Key makekeybind(char *keybind, char *cmd, char *args) {
-  //printf("start bind\n");
   int mod = 0;
   KeySym keysym = 0;
   int (*func)(Arg *) = NULL;
   Arg arg = {0};
   Bool btn = False;
-
-  // get the keybinds (super shfit q, alt enter, etc)
 
   for (int i = 0; keybind[i]; i++) {
     keybind[i] = tolower(keybind[i]);
@@ -189,7 +203,6 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   char *strptr = splitstring(keybind, " \t\n\r");
 
   while (strptr != NULL) {
-    //printf("[%s]\n", strptr);
 
     if (strlen(strptr) == 1) {
       keysym = XStringToKeysym(strptr);
@@ -237,8 +250,6 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
     strptr = splitstring(NULL, " \t\n\r");
   }
 
-  //printf("cmd = [%s]\n", cmd);
-
   // get the command (spawn, exitwm, kill_window, etc)
   if (strcmp(cmd, "spawn") == 0) {
     //printf("set spawn\n");
@@ -272,10 +283,6 @@ Key makekeybind(char *keybind, char *cmd, char *args) {
   } else {
     //printf("set none\n");
   }
-
-  //printf("arg len = %d\n", splitlen(args, " \t\n\r"));
-
-  //printf("args = [%s]\n", args);
 
   // spawn is the only case with more than one argument
   if (func == resizewindow || func == movewindow || func == focuswindow || func == swapwindow) {
@@ -387,6 +394,7 @@ void handlekeybind(char *str, char **keybind, char **cmd, char **args, int *ret)
   } else {
     // clear bindings
     if (strcmp(str, "clear") == 0) {
+      //deletekeys();
       free(conf->keys);
       conf->keys = NULL;
       conf->keyslen = 0;
@@ -400,6 +408,8 @@ void handlekeybind(char *str, char **keybind, char **cmd, char **args, int *ret)
 
 int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args) {
   int ret = 1;
+
+  //printf("str = [%s]\n", str);
 
   if (*token != tok_none && *token != tok_bind) {
     // token will be parsed correctly
@@ -422,11 +432,12 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
       printerr("invalid input\n");
       return 3;
     }
+
   } else if (*token == tok_bind) {
     // first time make a keybind, then cmd, then args
     handlekeybind(str, keybind, cmd, args, &ret);
-  } else if (*token == tok_desktop_names) {
 
+  } else if (*token == tok_desktop_names) {
     int numofstr = splitlen(str, " \t\n\r");
     char *strptr = splitstring(str, " \t\n\r");
     char **desktopnames = malloc(sizeof(char *) * numofstr);
@@ -443,26 +454,26 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     }
     conf->desktop_names = malloc(sizeof(char) * (desktopslen + numofstr + 1));
 
-    printf("conf->desktop_names len = %d\n", (desktopslen + numofstr + 1));
-    printf("desktopslen = %d\n", desktopslen);
+
+
 
     // copy into conf->desktop_names
     desktopslen = 0;
     for (int i = 0; i < numofstr; i++) {
       int strptrlen = strlen(desktopnames[i]);
-      printf("desktopnames[%d] = [%s]\n", i, desktopnames[i]);
-      printf("strptrlen = %d\n", strptrlen);
+
+
       strcpy(conf->desktop_names + desktopslen, desktopnames[i]);
-      printf("conf->desktop_names[%d] = [%s]\n", desktopslen, conf->desktop_names + desktopslen);
+      free(desktopnames[i]);
       desktopslen += strptrlen;
       conf->desktop_names[desktopslen] = '\0';
       desktopslen++;
-      printf("desktopslen = %d\n", desktopslen);
-    }
 
-    printf("conf->desktop_names = [%s]\n", conf->desktop_names);
-    printf("desktopslen = %d\n", desktopslen);
-    printf("numofstr = %d\n", numofstr);
+    }
+    free(desktopnames);
+
+
+
 
     conf->desktop_names_len = desktopslen;
     setdesktops();
@@ -521,6 +532,7 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
   // if it's not a bind then it's ok to free this memory
   if (*token != tok_bind) {
     free(str);
+    str = NULL;
   }
 
   // if there was no error and this isn't a keybind then
@@ -528,6 +540,8 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
   if (ret == 0 && *token != tok_bind) {
     remapwins();
   }
+
+  //printf("str = [%s]\n", str);
 
   return ret;
 }
@@ -559,12 +573,13 @@ int handleconnection(void) {
     } else {
       int datasize = getdata(s2, &done, size, &str);
 
-      printf("nwmc command:\n[%s]\n", str);
+      //printf("nwmc command:[%s]\n", str);
       // if the datasize is not what the client sent before
       // tell client to send the data again
       if (datasize != size && datasize != -1) {
         sendret(s2, &done, 2);
         free(str);
+        str = NULL;
       } else {
         sendret(s2, &done, 1);
         issize = 1;
@@ -575,8 +590,11 @@ int handleconnection(void) {
           ret = 2;
           token = tok_none;
           free(str);
+          str = NULL;
         } else {
           ret = handletoken(&token, str, &keybind, &cmd, &args);
+          if (token == tok_none) // doing this to make sure there's no memory leaks
+            str = NULL;
         }
       }
     }

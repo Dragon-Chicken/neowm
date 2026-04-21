@@ -1,0 +1,2241 @@
+startx ./build/nwm -- /usr/bin/Xephyr -screen 1290x720 :1
+checkotherwm
+
+setup
+
+config:
+	malloc: p:0x55dc42f85950, a:1, t:1, f:src/main.c, f:setup, l:2022
+
+startserver // ignore this
+
+desktoops:
+	malloc: p:0x55dc42f85b70, a:2, t:2, f:src/main.c, f:setup, l:2078
+
+desktop headc:
+createclient
+	malloc: p:0x55dc42f85c40, a:3, t:3, f:src/main.c, f:createclient, l:513
+createclient
+	malloc: p:0x55dc42f85ca0, a:4, t:4, f:src/main.c, f:createclient, l:513
+createclient
+	malloc: p:0x55dc42f85d00, a:5, t:5, f:src/main.c, f:createclient, l:513
+createclient
+	malloc: p:0x55dc42f85d60, a:6, t:6, f:src/main.c, f:createclient, l:513
+createclient
+	malloc: p:0x55dc42f85dc0, a:7, t:7, f:src/main.c, f:createclient, l:513
+
+printerr
+nwm: error: $XDG_CONFIG_HOME is not set
+
+config:
+using $HOME/.config/ instead
+	malloc: p:0x55dc42f8aa00, a:8, t:8, f:src/main.c, f:catstr, l:107
+	malloc: p:0x55dc42f8aa20, a:9, t:9, f:src/main.c, f:catstr, l:107
+	free: p:0x55dc42f8aa00, a:8, t:9, f:src/main.c, f:loadconfig, l:1937
+	malloc: p:0x55dc42f8aa40, a:9, t:10, f:src/main.c, f:catstr, l:107
+	malloc: p:0x55dc42f8aa70, a:10, t:11, f:src/main.c, f:catstr, l:107
+	free: p:0x55dc42f8aa20, a:9, t:11, f:src/main.c, f:loadconfig, l:1951
+configpath = [/home/ethan/.config/nwm/nwm.conf]
+startuppath = [/home/ethan/.config/nwm/startup]
+printerr
+nwm: error: startup file does not exist please create a startup file
+printerr
+nwm: error: config file does not exist please create a config file
+	free: p:0x55dc42f8aa70, a:8, t:11, f:src/main.c, f:loadconfig, l:1984
+	free: p:0x55dc42f8aa40, a:7, t:11, f:src/main.c, f:loadconfig, l:1985
+printerr
+nwm: error: failed to load config loading from repo path
+	malloc: p:0x55dc42f8aa20, a:8, t:12, f:src/main.c, f:setup, l:2104
+spawning: [/home/ethan/neowm/nwm.conf]
+	free: p:0x55dc42f8aa20, a:7, t:12, f:src/main.c, f:setup, l:2108
+	malloc: p:0x55dc42f8aa20, a:8, t:13, f:src/main.c, f:setup, l:2110
+spawning: [/home/ethan/neowm/startup]
+	free: p:0x55dc42f8aa20, a:7, t:13, f:src/main.c, f:setup, l:2114
+setupatoms
+
+EVENTS:
+
+event recv of type 16 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+// config called this
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+setdesktops
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+
+event recv of type 28 (void event)
+loopll
+setdesktops
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 28 (void event)
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 16 (void event)
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 16 (void event)
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 16 (void event)
+
+event recv of type 19 (void event)
+unbindkeys
+looptree
+ungrabbuttons
+loopll
+looptree
+ungrabbuttons
+loopll
+looptree
+ungrabbuttons
+loopll
+looptree
+ungrabbuttons
+loopll
+looptree
+ungrabbuttons
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 16 (void event)
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 23 (void event)
+
+event recv of type 20 (maprequest)
+manage
+createclient
+	malloc: p:0x55dc42f8bc00, a:8, t:14, f:src/main.c, f:createclient, l:513
+getwinprop
+getwinprop
+	free: p:0x55dc42f8bc00, a:7, t:14, f:src/main.c, f:manage, l:788
+
+event recv of type 23 (void event)
+
+event recv of type 19 (void event)
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+bindkeys
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+looptree
+grabbuttons
+loopll
+remapwins
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+looptree
+updateborders
+loopll
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+spawning: [st]
+
+event recv of type 16 (void event)
+
+event recv of type 20 (maprequest)
+manage
+createclient
+	malloc: p:0x55dc42f8bc00, a:8, t:15, f:src/main.c, f:createclient, l:513
+getwinprop
+grabbuttons
+gototree
+addtotree
+copyclient
+	free: p:0x55dc42f8bc00, a:7, t:15, f:src/main.c, f:attachnode, l:1088
+added to tree?
+looptree
+printbsptree
+win: id=root    ,  (00000000), win=c00005  , d=0
+looptree
+tilewins
+tiling c00005
+looptree
+mapwins
+win: path=0       , win=c00005  , x=40  , y=95  , w=1202, h=577
+setfocus
+sendevent
+looptree
+updateborders
+loopll
+warptowin
+createclientlist
+	malloc: p:0x55dc42f8d9b0, a:8, t:16, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 1
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 7 (enternotify)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+killfocused
+sendevent
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+createclient
+	malloc: p:0x55dc42f8bc00, a:9, t:17, f:src/main.c, f:createclient, l:513
+setfocus
+c is null or root
+	free: p:0x55dc42f85c40, a:8, t:17, f:src/main.c, f:unmanage, l:856
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+createclientlist
+	free: p:0x55dc42f8d9b0, a:7, t:17, f:src/main.c, f:createclientlist, l:712
+	malloc: p:0x55dc42f8d9b0, a:8, t:18, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 0
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 7 (enternotify)
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+killfocused
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+spawning: [st]
+
+event recv of type 16 (void event)
+
+event recv of type 20 (maprequest)
+manage
+createclient
+	malloc: p:0x55dc42f85c40, a:9, t:19, f:src/main.c, f:createclient, l:513
+getwinprop
+grabbuttons
+gototree
+addtotree
+copyclient
+	free: p:0x55dc42f85c40, a:8, t:19, f:src/main.c, f:attachnode, l:1088
+added to tree?
+looptree
+printbsptree
+win: id=root    ,  (00000000), win=c00005  , d=0
+looptree
+tilewins
+tiling c00005
+looptree
+mapwins
+win: path=0       , win=c00005  , x=40  , y=95  , w=1202, h=577
+setfocus
+sendevent
+looptree
+updateborders
+loopll
+warptowin
+createclientlist
+	free: p:0x55dc42f8d9b0, a:7, t:19, f:src/main.c, f:createclientlist, l:712
+	malloc: p:0x55dc42f8d9b0, a:8, t:20, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 1
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 7 (enternotify)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+spawning: [st]
+
+event recv of type 16 (void event)
+
+event recv of type 20 (maprequest)
+manage
+createclient
+	malloc: p:0x55dc42f85c40, a:9, t:21, f:src/main.c, f:createclient, l:513
+getwinprop
+grabbuttons
+gototree
+addtotree
+createclient
+	malloc: p:0x55dc42f8bc60, a:10, t:22, f:src/main.c, f:createclient, l:513
+copyclient
+added to tree?
+looptree
+printbsptree
+win: id=root    ,  (00000000), win=3c8     , d=0   , a->path=1       , a->win=c00005  , b->path=0       , b->win=1000005
+looptree
+printbsptree
+win: id=1 (00000001), win=c00005  , d=1   , p->path=0       , p->win=3c8
+looptree
+printbsptree
+win: id=0 (00000000), win=1000005 , d=1   , p->path=0       , p->win=3c8
+looptree
+tilewins
+tiling 3c8
+looptree
+tilewins
+tiling c00005
+looptree
+tilewins
+tiling 1000005
+looptree
+mapwins
+looptree
+mapwins
+win: path=1       , win=c00005  , x=40  , y=95  , w=577 , h=577
+looptree
+mapwins
+win: path=0       , win=1000005 , x=665 , y=95  , w=577 , h=577
+setfocus
+sendevent
+looptree
+updateborders
+looptree
+updateborders
+looptree
+updateborders
+loopll
+warptowin
+createclientlist
+	free: p:0x55dc42f8d9b0, a:9, t:22, f:src/main.c, f:createclientlist, l:712
+	malloc: p:0x55dc42f8d9b0, a:10, t:23, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 2
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 7 (enternotify)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 19 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 7 (enternotify)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+killfocused
+sendevent
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+copyclient
+looptree
+fixchildren
+setfocus
+sendevent
+looptree
+updateborders
+loopll
+warptowin
+	free: p:0x55dc42f85c40, a:9, t:23, f:src/main.c, f:unmanage, l:856
+looptree
+tilewins
+tiling c00005
+looptree
+mapwins
+win: path=0       , win=c00005  , x=40  , y=95  , w=1202, h=577
+createclientlist
+	free: p:0x55dc42f8d9b0, a:8, t:23, f:src/main.c, f:createclientlist, l:712
+	malloc: p:0x55dc42f8d9b0, a:9, t:24, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 1
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+setfocus
+sendevent
+looptree
+updateborders
+loopll
+
+event recv of type 7 (enternotify)
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 28 (void event)
+
+event recv of type 7 (enternotify)
+
+event recv of type 22 (void event)
+
+event recv of type 22 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+killfocused
+sendevent
+
+event recv of type 3 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+createclient
+	malloc: p:0x55dc42f85c40, a:10, t:25, f:src/main.c, f:createclient, l:513
+setfocus
+c is null or root
+	free: p:0x55dc42f8bc00, a:9, t:25, f:src/main.c, f:unmanage, l:856
+looptree
+tilewins
+tiling 3c8
+looptree
+mapwins
+createclientlist
+	free: p:0x55dc42f8d9b0, a:8, t:25, f:src/main.c, f:createclientlist, l:712
+	malloc: p:0x55dc42f8d9b0, a:9, t:26, f:src/main.c, f:createclientlist, l:713
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+addtoclientlist
+total wins: 0
+
+event recv of type 18 (unmapnotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 9 (focusin)
+
+event recv of type 7 (enternotify)
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 17 (destroynotify)
+unmanage
+removefromtree
+findclient
+findclient
+findclient
+findclient
+findclient
+removefromll
+findclientll
+findclientll
+findclientll
+findclientll
+findclientll
+can't find window
+
+event recv of type 28 (void event)
+
+event recv of type 28 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 10 (void event)
+
+event recv of type 9 (focusin)
+
+event recv of type 2 (keypress)
+exitwm
+killserver
