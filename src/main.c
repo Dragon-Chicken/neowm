@@ -2065,13 +2065,13 @@ void setup(void) {
   };
   conf->keys = NULL;
 
-  conf->keys = malloc(sizeof(Key) * conf->keyslen);
+  conf->keys = debug_malloc(sizeof(Key) * conf->keyslen);
 
-  char *st = malloc(sizeof(char) * 3);
+  char *st = debug_malloc(sizeof(char) * 3);
   st = "st";
 
   char **arg;
-  arg = malloc(sizeof(char *) * 2);
+  arg = debug_malloc(sizeof(char *) * 2);
   arg[0] = st;
   arg[1] = NULL;
   conf->keys[0] = (Key){Mod1Mask, XK_Return, spawn, {.s = arg}, False};
