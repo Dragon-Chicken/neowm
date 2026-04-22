@@ -7,6 +7,7 @@
 
 #include "main.h"
 #include "config.h"
+#include "memory.h"
 
 #define SOCK_PATH "/tmp/nwmc_socket"
 
@@ -63,361 +64,41 @@ int getsize(int s, int *done) {
       perror("recv");
     *done = 1;
   }
-  //printf("size = %d\n", (str[0] & 0x7f) | ((str[1] & 0x7f) << 7));
   return (str[0] & 0x7f) | ((str[1] & 0x7f) << 7);
 }
 
 int getdata(int s, int *done, int strlen, char **cmd) {
-  //printf("getdata\n");
-  //printf("strlen = %d\n", strlen);
-  char *str = malloc(sizeof(char) * strlen);
+  char *str = nwm_malloc(sizeof(char) * strlen);
   int n;
   if ((n = recv(s, str, strlen, 0)) <= 0) {
     if (n < 0)
       perror("recv");
     *done = 1;
   }
-  str[n] = '\0';
-  //printf("[%s]\n", str);
 
+  str[n] = '\0';
   *cmd = str;
 
   return n;
 }
 
-char *splitstring(char *s, char *delim) {
-  static char *olds;
-  char *token;
+void stripstr(char *s, char *delim, int len) {
+  char *d = s;
+  char *c = NULL;
 
-  if (s == NULL)
-    s = olds;
-
-  // scan leading delimiters (find token start)
-  int done = 0;
-  while (*s != '\0') {
-    int d = 0;
-    for (d = 0; delim[d] != '\0'; d++)
-      if (*s == delim[d])
-        break;
-    if (delim[d] == '\0')
-      break;
-    else
-      s++;
-  }
-
-  if (*s == '\0') {
-    olds = s;
-    return NULL;
-  }
-
-  token = s;
-  // find token end
-  done = 0;
-  while (*s != '\0' && !done) {
-    s++;
-    for (int d = 0; delim[d] != '\0'; d++) {
-      if (*s == delim[d]) {
-        done = 1;
-        break;
+  for (int i = 0; i < len; i++) {
+    c = delim;
+    while (*c) {
+      while (*d == *c) {
+        d++;
       }
+      c++;
     }
-  }
-
-  // if this token goes to the end of the string
-  for (int d = 0; delim[d] != '\0'; d++)
-    if (*s == delim[d])
-      *s = '\0';
-
-  olds = s + 1;
-  return token;
-}
-
-int splitlen(char *s, char *delim) {
-  int tokens = 0;
-
-  if (s == NULL)
-    return 0;
-
-  while (*s != '\0') {
-    // scan leading delimiters (find token start)
-    int done = 0;
-    while (*s != '\0') {
-      int d = 0;
-      for (d = 0; delim[d] != '\0'; d++)
-        if (*s == delim[d])
-          break;
-
-      if (delim[d] == '\0')
-        break;
-      else
-        s++;
-    }
-
-    if (*s == '\0')
-      break;
-
-    // find token end
-    done = 0;
-    while (*s != '\0' && !done) {
-      s++;
-      for (int d = 0; delim[d] != '\0'; d++) {
-        if (*s == delim[d]) {
-          done = 1;
-          break;
-        }
-      }
-    }
-    tokens++;
-  }
-  return tokens;
-}
-
-void deletekeys() { // check this
-  for (int i = 0; i <= conf->keyslen; i++) {
-    if (conf->keys[i].func == spawn) {
-      //debug_free(key->args.s[0], "Config, Key*, char* conf->keys[i].args.s[0]");
-      for (int j = 0; conf->keys[i].args.s[j] != NULL; j++) {
-        free(conf->keys[i].args.s[0]);
-      }
-
-      //debug_free(key->args.s);
-    }
-  }
-  free(conf->keys);
-
-  /*printf("bye bye\n");
-  exitwm(0);*/
-}
-
-Key makekeybind(char *keybind, char *cmd, char *args) {
-  int mod = 0;
-  KeySym keysym = 0;
-  int (*func)(Arg *) = NULL;
-  Arg arg = {0};
-  Bool btn = False;
-
-  for (int i = 0; keybind[i]; i++) {
-    keybind[i] = tolower(keybind[i]);
-  }
-
-  char *strptr = splitstring(keybind, " \t\n\r");
-
-  while (strptr != NULL) {
-
-    if (strlen(strptr) == 1) {
-      keysym = XStringToKeysym(strptr);
-
-    } else if (strcmp(strptr, "alt") == 0) {
-      mod |= Mod1Mask;
-    } else if (strcmp(strptr, "numlock") == 0) {
-      mod |= Mod2Mask;
-    } else if (strcmp(strptr, "altgr") == 0) {
-      mod |= Mod3Mask;
-    } else if (strcmp(strptr, "super") == 0) {
-      mod |= Mod4Mask;
-    } else if (strcmp(strptr, "scrolllock") == 0) {
-      mod |= Mod5Mask;
-    } else if (strcmp(strptr, "shift") == 0) {
-      mod |= ShiftMask;
-    } else if (strcmp(strptr, "control") == 0 || strcmp(strptr, "ctrl") == 0) {
-      mod |= ControlMask;
-
-    } else if (strcmp(strptr, "xf86audioraisevolume") == 0) {
-      keysym = XF86XK_AudioRaiseVolume;
-    } else if (strcmp(strptr, "xf86audiolowervolume") == 0) {
-      keysym = XF86XK_AudioLowerVolume;
-    } else if (strcmp(strptr, "xf86audiomute") == 0) {
-      keysym = XF86XK_AudioMute;
-    } else if (strcmp(strptr, "print") == 0) {
-      keysym = XK_Print;
-    } else if (strcmp(strptr, "space") == 0) {
-      keysym = XK_space;
-    } else if (strcmp(strptr, "enter") == 0) {
-      keysym = XK_Return;
-
-    } else if (strcmp(strptr, "button1") == 0) {
-      keysym = Button1; btn = True;
-    } else if (strcmp(strptr, "button2") == 0) {
-      keysym = Button2; btn = True;
-    } else if (strcmp(strptr, "button3") == 0) {
-      keysym = Button3; btn = True;
-    } else if (strcmp(strptr, "button4") == 0) {
-      keysym = Button4; btn = True;
-    } else if (strcmp(strptr, "button5") == 0) {
-      keysym = Button5; btn = True;
-    }
-
-    strptr = splitstring(NULL, " \t\n\r");
-  }
-
-  // get the command (spawn, exitwm, kill_window, etc)
-  if (strcmp(cmd, "spawn") == 0) {
-    //printf("set spawn\n");
-    func = spawn;
-  } else if (strcmp(cmd, "exit") == 0) {
-    func = exitwm;
-  } else if (strcmp(cmd, "float_toggle") == 0) {
-    func = floattoggle;
-  } else if (strcmp(cmd, "kill_window") == 0) {
-    func = killfocused;
-  } else if (strcmp(cmd, "focus_toggle") == 0) {
-    func = focustoggle;
-  } else if (strcmp(cmd, "focus_window") == 0) {
-    func = focuswindow;
-  } else if (strcmp(cmd, "swap_window") == 0) {
-    func = swapwindow;
-  } else if (strcmp(cmd, "move_window") == 0) {
-    func = movewindow;
-  } else if (strcmp(cmd, "center_window") == 0) {
-    func = centerwindow;
-  } else if (strcmp(cmd, "drag_move_window") == 0) {
-    func = dragmovewindow;
-  } else if (strcmp(cmd, "drag_resize_window") == 0) {
-    func = dragresizewindow;
-  } else if (strcmp(cmd, "resize_window") == 0) {
-    func = resizewindow;
-  } else if (strcmp(cmd, "focus_desktop") == 0) {
-    func = focusdesktop;
-  } else if (strcmp(cmd, "move_desktop") == 0) {
-    func = movedesktop;
-  } else {
-    //printf("set none\n");
-  }
-
-  // spawn is the only case with more than one argument
-  if (func == resizewindow || func == movewindow || func == focuswindow || func == swapwindow) {
-    if (strcmp(args, "up") == 0) {
-      arg.i = dirup;
-    } else if (strcmp(args, "down") == 0) {
-      arg.i = dirdown;
-    } else if (strcmp(args, "left") == 0) {
-      arg.i = dirleft;
-    } else if (strcmp(args, "right") == 0) {
-      arg.i = dirright;
-    } else {
-      arg.i = strtol(args, NULL, 10);
-    }
-
-  } else if (func != spawn) {
-    arg.i = strtol(args, NULL, 10);
-  } else {
-    int argslen = splitlen(args, " \t\n\r");
-    arg.s = malloc(sizeof(char *) * (argslen + 1));
-    strptr = splitstring(args, " \t\n\r");
-    for (int i = 0; i < argslen; i++) {
-      // allocates memory because "args" may be freed
-      int strptrlen = strlen(strptr);
-      arg.s[i] = malloc(sizeof(char *) * (strptrlen + 1));
-      memcpy(arg.s[i], strptr, strptrlen);
-      arg.s[i][strptrlen] = '\0';
-
-      strptr = splitstring(NULL, " \t\n\r");
-    }
-
-    arg.s[argslen] = '\0';
-  }
-
-  // something went wrong if any of these are 0
-  if (mod == 0) {
-    //printf("mod == 0\n");
-  }
-  if (keysym == 0) {
-    //printf("keysym == 0\n");
-  }
-  if (func == NULL) {
-    //printf("func == NULL\n");
-  }
-
-  if (mod == 0 || keysym == 0 || func == NULL) {
-    //printf("something was 0\n");
-    //return (Key){0, 0, NULL, {0}};
-  }
-
-  //printf("#### token made ####\n");
-
-  return (Key){mod, keysym, func, arg, btn};
-}
-
-void handlekeybind(char *str, char **keybind, char **cmd, char **args, int *ret) {
-  if (*keybind) {
-    if (*cmd) {
-      *args = str;
-
-      Key key = makekeybind(*keybind, *cmd, *args);
-      if (key.func == NULL) {
-        printerr("invalid key\n");
-        return;
-      }
-
-      // if key
-      if (key.btn == False) {
-        conf->keyslen++;
-        Key *oldkeys = conf->keys;
-        conf->keys = malloc(sizeof(Key) * conf->keyslen);
-        if (oldkeys)
-          memcpy(conf->keys, oldkeys, sizeof(Key) * conf->keyslen-1);
-
-        // add new Key to the end
-        conf->keys[conf->keyslen - 1] = key;
-
-        if (oldkeys)
-          free(oldkeys);
-        *ret = 0;
-
-      // if button
-      } else {
-        conf->btnslen++;
-        Key *oldbtns = conf->btns;
-        conf->btns = malloc(sizeof(Key) * conf->btnslen);
-        if (oldbtns)
-          memcpy(conf->btns, oldbtns, sizeof(Key) * conf->btnslen-1);
-
-        // add new Key(button) to the end
-        conf->btns[conf->btnslen - 1] = key;
-
-        if (oldbtns)
-          free(oldbtns);
-        *ret = 0;
-      }
-
-      bindkeys();
-
-      free(*args);
-      free(*cmd);
-      free(*keybind);
-      *args = NULL;
-      *cmd = NULL;
-      *keybind = NULL;
-
-      remapwins();
-    } else *cmd = str;
-  } else {
-    // clear bindings
-    if (strcmp(str, "clear") == 0) {
-      //deletekeys();
-      free(conf->keys);
-      conf->keys = NULL;
-      conf->keyslen = 0;
-      *ret = 0;
-      unbindkeys();
-    } else {
-      *keybind = str;
-    }
+    *s++ = *d++;
   }
 }
 
-int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args) {
-  int ret = 1;
-
-  //printf("str = [%s]\n", str);
-
-  if (*token != tok_none && *token != tok_bind) {
-    // token will be parsed correctly
-    ret = 0;
-  }
-
-  // handle the token types
-  // (none, a keybind, or a setting)
+void parse(Token *token, char *str, Key *key, int *keystate) {
   if (*token == tok_none) {
 #define TOK(name) \
     if (strcmp(str, #name) == 0) { \
@@ -425,178 +106,276 @@ int handletoken(Token *token, char *str, char **keybind, char **cmd, char **args
     }
     CONFIG_COMMANDS
 #undef TOK
+    return;
+  }
 
-    // the above should have set the right token
-    // if it couldn't get it then the token is invalid
-    if (*token == tok_none) {
-      printerr("invalid input\n");
-      return 3;
-    }
-
-  } else if (*token == tok_bind) {
-    // first time make a keybind, then cmd, then args
-    handlekeybind(str, keybind, cmd, args, &ret);
-
-  } else if (*token == tok_desktop_names) {
-    int numofstr = splitlen(str, " \t\n\r");
-    char *strptr = splitstring(str, " \t\n\r");
-    char **desktopnames = malloc(sizeof(char *) * numofstr);
-
-    int desktopslen = 0;
-    for (int i = 0; i < numofstr; i++) {
-      // allocates memory because "str" may be freed
-      int strptrlen = strlen(strptr);
-      desktopnames[i] = malloc(sizeof(char *) * (strptrlen + 1));
-      memcpy(desktopnames[i], strptr, strptrlen);
-      desktopnames[i][strptrlen] = '\0';
-      desktopslen += strptrlen;
-      strptr = splitstring(NULL, " \t\n\r");
-    }
-    conf->desktop_names = malloc(sizeof(char) * (desktopslen + numofstr + 1));
-
-
-
-
-    // copy into conf->desktop_names
-    desktopslen = 0;
-    for (int i = 0; i < numofstr; i++) {
-      int strptrlen = strlen(desktopnames[i]);
-
-
-      strcpy(conf->desktop_names + desktopslen, desktopnames[i]);
-      free(desktopnames[i]);
-      desktopslen += strptrlen;
-      conf->desktop_names[desktopslen] = '\0';
-      desktopslen++;
-
-    }
-    free(desktopnames);
-
-
-
-
-    conf->desktop_names_len = desktopslen;
+  // settings tokens
+  if (*token == tok_number_of_desktops) {
+    conf->num_of_desktops = strtol(str, NULL, 10);
     setdesktops();
+  } else if (*token == tok_desktop_names) {
+    int len = strlen(str) + 1; // +1 to count null
 
-  } else {
-    // strtol returns 0 if it fails to find a number
-    // so random rubbish will just be 0 (and is also valid xd)
-    switch (*token) {
-      case tok_refresh_rate:
-        conf->refreshrate = strtol(str, NULL, 10);
-        break;
-      case tok_split_ratio:
-        conf->split_ratio = (strtol(str, NULL, 10))/100.0f;
-        break;
-      case tok_vertical_gaps:
-        conf->vgaps = strtol(str, NULL, 10);
-        break;
-      case tok_horizontal_gaps:
-        conf->hgaps = strtol(str, NULL, 10);
-        break;
-      case tok_border_size:
-        conf->bord_size = strtol(str, NULL, 10);
-        break;
-      case tok_number_of_desktops:
-        conf->num_of_desktops = strtol(str, NULL, 10);
-        setdesktops();
-        break;
-      case tok_resize_amount:
-        conf->resize_amount = (strtol(str, NULL, 10))/100.0f;
-        break;
-      case tok_move_amount:
-        conf->move_amount = strtol(str, NULL, 10);
-        break;
-      case tok_minimum_size:
-        conf->min_size = (strtol(str, NULL, 10));
-        break;
-      case tok_focused_border_color:
-        conf->bord_foc_col = strtol(str, NULL, 16);
-        break;
-      case tok_border_color:
-        conf->bord_col = strtol(str, NULL, 16);
-        break;
-      case tok_focused_border_color_floating:
-        conf->bord_foc_col_float = strtol(str, NULL, 16);
-        break;
-      case tok_border_color_floating:
-        conf->bord_col_float = strtol(str, NULL, 16);
-        break;
+    if (conf->desktop_names)
+      nwm_free(conf->desktop_names);
 
-      default: // just here to hide the "enumeration value not handled" warning
-        ret = 5;
-        break;
+    conf->desktop_names = nwm_malloc(sizeof(char) * len);
+    memcpy(conf->desktop_names, str, len);
+    char *sptr = strtok(conf->desktop_names, " \t\n\r");
+    while (sptr) {
+      sptr = strtok(NULL, " \t\n\r");
     }
+    stripstr(conf->desktop_names, " \t\n\r", len);
+    conf->desktop_names_len = len;
+
+    setdesktops();
   }
 
-  // if it's not a bind then it's ok to free this memory
-  if (*token != tok_bind) {
-    free(str);
-    str = NULL;
+  switch (*token) {
+    // borders
+    case tok_border_size:
+      conf->bord_size = strtol(str, NULL, 10); break;
+
+    case tok_focused_border_color:
+      conf->bord_foc_col = strtol(str, NULL, 16); break;
+    case tok_border_color:
+      conf->bord_col = strtol(str, NULL, 16); break;
+    case tok_focused_border_color_floating:
+      conf->bord_foc_col_float = strtol(str, NULL, 16); break;
+    case tok_border_color_floating:
+      conf->bord_col_float = strtol(str, NULL, 16); break;
+
+    case tok_refresh_rate:
+      conf->refreshrate = strtol(str, NULL, 10); break;
+    case tok_minimum_size:
+      conf->min_size = strtol(str, NULL, 10); break;
+
+    case tok_vertical_gaps:
+      conf->vgaps = strtol(str, NULL, 10); break;
+    case tok_horizontal_gaps:
+      conf->hgaps = strtol(str, NULL, 10); break;
+    case tok_move_amount:
+      conf->move_amount = strtol(str, NULL, 10); break;
+
+    // floats
+    case tok_split_ratio:
+      conf->split_ratio = strtol(str, NULL, 10)/100.0f; break;
+    case tok_resize_amount:
+      conf->resize_amount = strtol(str, NULL, 10)/100.0f; break;
+
+    default:
+      break;
   }
 
-  // if there was no error and this isn't a keybind then
-  // flush (refresh) x11
-  if (ret == 0 && *token != tok_bind) {
+  // bind
+  if (*token != tok_bind) { // doing to remove indents...
     remapwins();
+    return;
   }
 
-  //printf("str = [%s]\n", str);
+  if (*keystate == 0) {
+    char *sptr = strtok(str, " \t\n\r");
+    key->mod = 0;
+    while (sptr) {
+      if (strcmp(sptr, "clear") == 0) {
+        unbindkeys();
+        clearconfigbinds();
+        *keystate = 0;
+        return;
+      }
 
-  return ret;
+      if (strlen(sptr) == 1) {
+        key->keysym = XStringToKeysym(sptr);
+      } else if (strcmp(sptr, "alt") == 0) {
+        key->mod |= Mod1Mask;
+      } else if (strcmp(sptr, "numlock") == 0) {
+        key->mod |= Mod2Mask;
+      } else if (strcmp(sptr, "altgr") == 0) {
+        key->mod |= Mod3Mask;
+      } else if (strcmp(sptr, "super") == 0) {
+        key->mod |= Mod4Mask;
+      } else if (strcmp(sptr, "scrolllock") == 0) {
+        key->mod |= Mod5Mask;
+      } else if (strcmp(sptr, "shift") == 0) {
+        key->mod |= ShiftMask;
+      } else if (strcmp(sptr, "control") == 0 || strcmp(sptr, "ctrl") == 0) {
+        key->mod |= ControlMask;
+
+      } else if (strcmp(sptr, "xf86audioraisevolume") == 0) {
+        key->keysym = XF86XK_AudioRaiseVolume;
+      } else if (strcmp(sptr, "xf86audiolowervolume") == 0) {
+        key->keysym = XF86XK_AudioLowerVolume;
+      } else if (strcmp(sptr, "xf86audiomute") == 0) {
+        key->keysym = XF86XK_AudioMute;
+      } else if (strcmp(sptr, "print") == 0) {
+        key->keysym = XK_Print;
+      } else if (strcmp(sptr, "space") == 0) {
+        key->keysym = XK_space;
+      } else if (strcmp(sptr, "enter") == 0) {
+        key->keysym = XK_Return;
+
+      } else if (strcmp(sptr, "button1") == 0) {
+        key->keysym = Button1; key->btn = True;
+      } else if (strcmp(sptr, "button2") == 0) {
+        key->keysym = Button2; key->btn = True;
+      } else if (strcmp(sptr, "button3") == 0) {
+        key->keysym = Button3; key->btn = True;
+      } else if (strcmp(sptr, "button4") == 0) {
+        key->keysym = Button4; key->btn = True;
+      } else if (strcmp(sptr, "button5") == 0) {
+        key->keysym = Button5; key->btn = True;
+      }
+
+      sptr = strtok(NULL, " \t\n\r");
+    }
+  } else if (*keystate == 1) {
+    key->func = NULL;
+    if (strcmp(str, "spawn") == 0) {
+      key->func = spawn;
+    } else if (strcmp(str, "exit") == 0) {
+      key->func = exitwm;
+    } else if (strcmp(str, "float_toggle") == 0) {
+      key->func = floattoggle;
+    } else if (strcmp(str, "kill_window") == 0) {
+      key->func = killfocused;
+    } else if (strcmp(str, "focus_toggle") == 0) {
+      key->func = focustoggle;
+    } else if (strcmp(str, "focus_window") == 0) {
+      key->func = focuswindow;
+    } else if (strcmp(str, "swap_window") == 0) {
+      key->func = swapwindow;
+    } else if (strcmp(str, "move_window") == 0) {
+      key->func = movewindow;
+    } else if (strcmp(str, "center_window") == 0) {
+      key->func = centerwindow;
+    } else if (strcmp(str, "drag_move_window") == 0) {
+      key->func = dragmovewindow;
+    } else if (strcmp(str, "drag_resize_window") == 0) {
+      key->func = dragresizewindow;
+    } else if (strcmp(str, "resize_window") == 0) {
+      key->func = resizewindow;
+    } else if (strcmp(str, "focus_desktop") == 0) {
+      key->func = focusdesktop;
+    } else if (strcmp(str, "move_desktop") == 0) {
+      key->func = movedesktop;
+    } else {
+      printerr("is not function\n");
+    }
+  } else if (*keystate == 2) {
+    if (key->func != spawn) {
+      if (strcmp(str, "up") == 0) {
+        key->args.i = dirup;
+      } else if (strcmp(str, "down") == 0) {
+        key->args.i = dirdown;
+      } else if (strcmp(str, "left") == 0) {
+        key->args.i = dirleft;
+      } else if (strcmp(str, "right") == 0) {
+        key->args.i = dirright;
+      } else {
+        key->args.i = strtol(str, NULL, 10);
+      }
+    } else {
+      int len = strlen(str) + 1; // +1 to count null
+
+      int num_of_args = 0;
+
+      char *sptr = strtok(str, " \t\n\r");
+      while (sptr) {
+        sptr = strtok(NULL, " \t\n\r");
+        num_of_args++;
+      }
+
+      stripstr(str, " \t\n\r", len);
+      key->args.s = nwm_malloc(sizeof(char **) * num_of_args + 1);
+
+      for (int i = 0; i < num_of_args; i++) {
+        while (!*str) // go till not null
+          str++;
+
+        len = strlen(str) + 1;
+        key->args.s[i] = nwm_malloc(sizeof(char *) * len);
+        memcpy(key->args.s[i], str, len);
+
+        while (*str) // go till null
+          str++;
+      }
+      key->args.s[num_of_args] = NULL;
+    }
+
+    if (!key->btn) {
+      conf->keyslen++;
+      Key *tofree = conf->keys;
+      conf->keys = nwm_malloc(sizeof(Key) * conf->keyslen);
+      if (tofree) {
+        memcpy(conf->keys, tofree, sizeof(Key) * (conf->keyslen - 1));
+        nwm_free(tofree);
+      }
+      conf->keys[conf->keyslen - 1] = *key;
+
+      *keystate = 0;
+    } else {
+      conf->btnslen++;
+      Key *tofree = conf->btns;
+      conf->btns = nwm_malloc(sizeof(Key) * conf->btnslen);
+      if (tofree) {
+        memcpy(conf->btns, tofree, sizeof(Key) * (conf->btnslen - 1));
+        nwm_free(tofree);
+      }
+      conf->btns[conf->btnslen - 1] = *key;
+
+      *keystate = 0;
+    }
+    bindkeys();
+  }
+
+  *keystate += 1;
+
+  //exitwm(0);
 }
 
 int handleconnection(void) {
   char *str = NULL;
 
-  char *keybind = NULL;
-  char *cmd = NULL;
-  char *args = NULL;
-
   Token token = tok_none;
 
-  int issize = 1;
+  Bool issize = True;
   int size = 0;
-  int ret = 1;
+  int ret = 1; // 0 == ok, 1 == error, 2 == resend data
+
+  Key key = {0};
+  int keystate = 0;
 
   // request data till the client sends an empty message or an error
   int done = 0;
   do {
     // first client sends size of message
     // then sends the message
-    if (issize == 1) {
+    if (issize) {
       size = getsize(s2, &done) + 1;
-      if (size == 1) {
+      if (size == 1)
         done = 1;
-      }
-      issize = 0;
+      issize = False;
+
     } else {
       int datasize = getdata(s2, &done, size, &str);
+#ifdef NWM_DEBUG
+      printf("nwmc command:[%s]\n", str);
+#endif
 
-      //printf("nwmc command:[%s]\n", str);
-      // if the datasize is not what the client sent before
-      // tell client to send the data again
+      ret = 0;
+
       if (datasize != size && datasize != -1) {
-        sendret(s2, &done, 2);
-        free(str);
-        str = NULL;
-      } else {
-        sendret(s2, &done, 1);
-        issize = 1;
-        // if this condition is true that means the client is sending too many arguments
-        // so set the return value to 2 (too many arguments)
-        // and also don't bother parsing the data
-        if (ret == 0 || ret == 2) {
-          ret = 2;
-          token = tok_none;
-          free(str);
-          str = NULL;
-        } else {
-          ret = handletoken(&token, str, &keybind, &cmd, &args);
-          if (token == tok_none) // doing this to make sure there's no memory leaks
-            str = NULL;
-        }
+        printerr("wtf is going on (server error)\n");
+        exitwm(0);
       }
+
+      parse(&token, str, &key, &keystate);
+
+      sendret(s2, &done, 1);
+      issize = True;
+
+      nwm_free(str);
+      str = NULL;
     }
   } while (!done);
 
@@ -633,7 +412,6 @@ void *serverthread(void *arg) {
   // handle clients
   for(;;) {
     // wait for client connection
-    //printf("Waiting for a connection...\n");
     socklen_t slen = sizeof(remote);
     if ((s2 = accept(s, (struct sockaddr *)&remote, &slen)) == -1) {
       perror("accept");

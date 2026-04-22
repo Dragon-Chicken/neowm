@@ -1,10 +1,20 @@
 #ifndef NWM_MEMORY
 #define NWM_MEMORY
 
-#define debug_malloc(X) nwm_malloc( X, __FILE__, __LINE__, __FUNCTION__)
-#define debug_free(X) nwm_free( X, __FILE__, __LINE__, __FUNCTION__)
+#ifdef NWM_DEBUG
 
-void *nwm_malloc(size_t size, const char *file, int line, const char *func);
-void nwm_free(void *ptr, const char *file, int line, const char *func);
+#define nwm_malloc(X) debug_malloc( X, __FILE__, __LINE__, __func__)
+#define nwm_free(X) debug_free( X, __FILE__, __LINE__, __func__)
+
+void *debug_malloc(size_t size, const char *file, int line, const char *func);
+void debug_free(void *ptr, const char *file, int line, const char *func);
+void checkallocs(void);
+
+#else
+
+#define nwm_malloc(X) malloc(X)
+#define nwm_free(X) free(X)
+
+#endif
 
 #endif

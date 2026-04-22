@@ -1,6 +1,5 @@
 #include "main.h"
 #include "config.h"
-#include "memory.h"
 
 Atom wmatom[WMLast];
 Atom netatom[NetLast];
@@ -39,7 +38,7 @@ int (*xerrorxlib)(Display *, XErrorEvent *);
 // debug
 #ifdef NWM_DEBUG
 void printpath(unsigned int path, int depth) {
-  printf("%s\n", __func__);
+  //printf("printpath\n");
   for (int i = 0; i < depth; i++) {
     if ((path & (1 << i)) == 1) {
       printf("1");
@@ -50,7 +49,7 @@ void printpath(unsigned int path, int depth) {
 }
 
 int printbsptree(Client *c) {
-  printf("%s\n", __func__);
+  printf("printbsptree\n");
   if (!c) {
     printf("client is invalid\n");
     return FAIL;
@@ -78,7 +77,7 @@ int printbsptree(Client *c) {
 }
 
 void printll(Client *c) {
-  printf("%s\n", __func__);
+  printf("printll\n");
   while (c) {
     printf("win: ");
     printf("win=%-8lx, d=%-4d", c->win, c->depth);
@@ -92,12 +91,10 @@ void printll(Client *c) {
 // helpers
 void printerr(char *errstr) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-  // cant do 'make xephyr > file' when you print to stderr
-  printf("%s: error: %s", WM_NAME, errstr);
-#else
-  fprintf(stderr, "%s: error: %s", WM_NAME, errstr);
+  printf("printerr\n");
 #endif
+  //fprintf(stderr, "%s: error: %s", WM_NAME, errstr);
+  printf("%s: error: %s", WM_NAME, errstr);
 }
 
 char *catstr(char *a, char *b) {
@@ -106,7 +103,7 @@ char *catstr(char *a, char *b) {
 
   char *retstr = NULL;
 
-  retstr = nwm_malloc(sizeof(char) * (sizeofa + sizeofb + 1));
+  retstr = malloc(sizeof(char) * (sizeofa + sizeofb + 1));
   memcpy(retstr, a, sizeofa);
   retstr[sizeofa] = 0; // making sure it's 0 (it really isn't needed because the memcpy includes it)
 
@@ -118,7 +115,7 @@ char *catstr(char *a, char *b) {
 
 int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("getwinprop\n");
 #endif
 
   // Atom == unsigned long
@@ -146,7 +143,7 @@ int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retat
 
 void remapwins(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("remapwins\n");
 #endif
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
@@ -157,7 +154,7 @@ void remapwins(void) {
 
 void bindkeys(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("bindkeys\n");
 #endif
 
   for (int i = 0; i < conf->keyslen; i++) {
@@ -173,7 +170,7 @@ void bindkeys(void) {
 
 void unbindkeys(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("unbindkeys\n");
 #endif
 
   for (int i = 0; i < conf->keyslen; i++) {
@@ -189,7 +186,7 @@ void unbindkeys(void) {
 
 int grabbuttons(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("grabbuttons\n");
 #endif
 
   if (conf->btns) {
@@ -203,7 +200,7 @@ int grabbuttons(Client *c) {
 
 int ungrabbuttons(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("ungrabbuttons\n");
 #endif
 
   if (conf->btns) {
@@ -217,18 +214,18 @@ int ungrabbuttons(Client *c) {
 
 void setdesktops(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("setdesktops\n");
 #endif
 
   /*printf("num of desktops = %d\n", conf->num_of_desktops);
-    printf("old num of desktops = %d\n", old_num_of_desktops);*/
+  printf("old num of desktops = %d\n", old_num_of_desktops);*/
 
   if (conf->num_of_desktops != old_num_of_desktops) {
 
     if (conf->num_of_desktops < 1)
       conf->num_of_desktops = 1;
 
-    Desktop *newdesktops = nwm_malloc(sizeof(Desktop) * conf->num_of_desktops);
+    Desktop *newdesktops = malloc(sizeof(Desktop) * conf->num_of_desktops);
 
     if (desktops) {
       if (conf->num_of_desktops > old_num_of_desktops) {
@@ -248,7 +245,7 @@ void setdesktops(void) {
         memcpy(newdesktops, desktops, sizeof(Desktop) * conf->num_of_desktops);
       }
 
-      nwm_free(desktops);
+      free(desktops);
     }
 
     old_num_of_desktops = conf->num_of_desktops;
@@ -259,19 +256,19 @@ void setdesktops(void) {
 
   /*for (int i = 0; i < conf->num_of_desktops; i++) {
     if (desktops[i].headc)
-    printf("desktops[i].headc->win = %lx\n", desktops[i].headc->win);
-    }
+      printf("desktops[i].headc->win = %lx\n", desktops[i].headc->win);
+  }
 
-    printf("what\n");
+  printf("what\n");
 
-    printf("num of desktops = %d\n", conf->num_of_desktops);
+  printf("num of desktops = %d\n", conf->num_of_desktops);
 
-    printf("desktop names len = %d\n", conf->desktop_names_len);*/
+  printf("desktop names len = %d\n", conf->desktop_names_len);*/
 
   /*XChangeProperty(dpy, root, netatom[NetNumberOfDesktops], XA_CARDINAL, 32,
-    PropModeReplace, (const unsigned char *)&conf->num_of_desktops, 1);
-    XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
-    PropModeReplace, (const unsigned char *)&deski, 1);*/
+      PropModeReplace, (const unsigned char *)&conf->num_of_desktops, 1);
+  XChangeProperty(dpy, root, netatom[NetCurrentDesktop], XA_CARDINAL, 32,
+      PropModeReplace, (const unsigned char *)&deski, 1);*/
   XChangeProperty(dpy, root, netatom[NetDesktopNames], utf8string, 8,
       PropModeReplace, (const unsigned char *)conf->desktop_names, conf->desktop_names_len);
 
@@ -280,7 +277,7 @@ void setdesktops(void) {
 
 void warptowin(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("warptowin\n");
 #endif
   if (c) {
     ignoreenter = 1;
@@ -289,9 +286,6 @@ void warptowin(Client *c) {
 }
 
 void checkwinsize(Client *c) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   if (c->w <= 0 || c->h <= 0) { // FIX THIS
     printerr("width/height too small\n");
     if (!c->floating)
@@ -308,52 +302,18 @@ void checkwinsize(Client *c) {
   }
 }
 
-void clearstringargs(Key *keys, int len) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
-  for (int i = 0; i < len; i++) {
-    if (keys[i].func == spawn) {
-      for (int j = 0; keys[i].args.s[j] != 0; j++) {
-        nwm_free(keys[i].args.s[j]);
-      }
-      nwm_free(keys[i].args.s);
-    }
-  }
-}
-
-void clearconfigbinds() {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
-  if (conf->keys) {
-    clearstringargs(conf->keys, conf->keyslen);
-    nwm_free(conf->keys);
-    conf->keys = NULL;
-    conf->keyslen = 0;
-  }
-
-  if (conf->btns) {
-    clearstringargs(conf->btns, conf->btnslen);
-    nwm_free(conf->btns);
-    conf->btns = NULL;
-    conf->btnslen = 0;
-  }
-}
-
-
 
 // events
 void voidevent(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(void event)\n");
 #endif
   (void)ev;
 }
 
 void keypress(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(keypress)\n");
 #endif
 
   XKeyEvent *xkey = &ev->xkey;
@@ -369,7 +329,7 @@ void keypress(XEvent *ev) {
 
 void buttonpress(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(buttonpress)\n");
 #endif
   XButtonEvent *xbtn = &ev->xbutton;
 
@@ -399,7 +359,7 @@ void buttonpress(XEvent *ev) {
 
 void buttonrelease(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(buttonrelease)\n");
 #endif
   XButtonEvent *xbtn = &ev->xbutton;
 
@@ -421,7 +381,7 @@ void buttonrelease(XEvent *ev) {
 
 void motionnotify(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(motionnotify)\n");
 #endif
   if (mousedrag == 0) {
     return;
@@ -448,7 +408,7 @@ void motionnotify(XEvent *ev) {
 
 void maprequest(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(maprequest)\n");
 #endif
 
   XMapRequestEvent *mapreq = &ev->xmaprequest;
@@ -461,7 +421,7 @@ void maprequest(XEvent *ev) {
 
 void unmapnotify(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(unmapnotify)\n");
 #endif
 
 // NEED TO FIND A WAY TO TELL IF THE UNMAPNOTIFY EVENT WAS SENT BY THE WM OR NOT
@@ -474,7 +434,7 @@ void unmapnotify(XEvent *ev) {
 
 void destroynotify(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(destroynotify)\n");
 #endif
 
   //printf("desktops[deski].focused->win: %lx\n", desktops[deski].focused->win);
@@ -485,7 +445,7 @@ void destroynotify(XEvent *ev) {
 
 void enternotify(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(enternotify)\n");
 #endif
 
   if (ev->xcrossing.window == root)
@@ -516,7 +476,7 @@ void enternotify(XEvent *ev) {
 
 void focusin(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(focusin)\n");
 #endif
 
   if (ev->xfocus.window == root) {
@@ -531,7 +491,7 @@ void focusin(XEvent *ev) {
 
 void clientmessage(XEvent *ev) {
 #ifdef NWM_DEBUG
-  printf("(%s)\n", __func__);
+  printf("(clientmessage)\n");
 #endif
 
   XClientMessageEvent *xclient = &ev->xclient;
@@ -547,9 +507,9 @@ void clientmessage(XEvent *ev) {
 // client
 Client *createclient(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("createclient\n");
 #endif
-  Client *c = nwm_malloc(sizeof(Client));
+  Client *c = (Client *)malloc(sizeof(Client));
   c->a = NULL;
   c->b = NULL;
   c->p = NULL;
@@ -571,7 +531,7 @@ Client *createclient(void) {
 
 void copyclient(Client *a, Client *b, Bool win, Bool pos, Bool path, Bool ab) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("copyclient\n");
 #endif
   if (win) {
     a->win = b->win;
@@ -600,7 +560,7 @@ void copyclient(Client *a, Client *b, Bool win, Bool pos, Bool path, Bool ab) {
 
 unsigned int findpath(unsigned int path, int depth, Bool dir) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("finding path\n");
 #endif
 
   if (dir == 0)
@@ -630,7 +590,7 @@ unsigned int findpath(unsigned int path, int depth, Bool dir) {
 
 Client *findclientindir(Client *incl, enum Dir dir) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("findclientdir\n");
 #endif
 
   unsigned int destpath = 0;
@@ -676,9 +636,6 @@ Client *findclientindir(Client *incl, enum Dir dir) {
 }
 
 long getsizehints(Client *newc) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   XSizeHints sizehints;
   long supret;
   if(!XGetWMNormalHints(dpy, newc->win, &sizehints, &supret)) {
@@ -703,7 +660,7 @@ long getsizehints(Client *newc) {
 
 int fixchildren(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("fixchildren\n");
 #endif
 
   if (!c)
@@ -725,7 +682,7 @@ int fixchildren(Client *c) {
 
 int addtoclientlist(Client *c, Window *wins, int numofwins) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("addtoclientlist\n");
 #endif
 
   if (!c) {
@@ -746,13 +703,13 @@ int addtoclientlist(Client *c, Window *wins, int numofwins) {
 
 void createclientlist(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("createclientlist\n");
 #endif
   //Window wins[totalwins];
 
-  if (wins)
-    nwm_free(wins);
-  wins = nwm_malloc(sizeof(Window) * totalwins);
+  if (!wins)
+    free(wins);
+  wins = malloc(sizeof(Window) * totalwins);
 
   int numofwins = 0;
   for (int i = 0; i < conf->num_of_desktops; i++) {
@@ -785,9 +742,6 @@ void createclientlist(void) {
 }
 
 int shouldmanage(Client *c) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   // this function returns FAIL on success
   Atom wtype;
   if (!getwinprop(c, netatom[NetWMWindowType], &wtype, 1, XA_ATOM) ||
@@ -815,7 +769,7 @@ int shouldmanage(Client *c) {
 
 void manage(Window w) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("manage\n");
 #endif
   if (!w) {
     printerr("window is null\n");
@@ -830,7 +784,7 @@ void manage(Window w) {
 
   // check window type (normal, docks...)
   if (!shouldmanage(newc)) {
-    nwm_free(newc);
+    free(newc);
     return;
   }
 
@@ -878,7 +832,7 @@ void manage(Window w) {
 
 void unmanage(Window w) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("unmanage\n");
 #endif
   // this function has bugs!
   // may be fixed with the function above (fixchildren)?
@@ -898,7 +852,7 @@ void unmanage(Window w) {
     warptowin(c->p);
   }*/
 
-  nwm_free(c);
+  free(c);
   looptree(desktops[deski].headc, tilewins);
   looptree(desktops[deski].headc, mapwins);
 
@@ -911,7 +865,7 @@ void unmanage(Window w) {
 // linked list
 int loopll(Client *c, int (*func)(Client *)) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("loopll\n");
 #endif
   if (!c)
     return FAIL;
@@ -926,7 +880,7 @@ int loopll(Client *c, int (*func)(Client *)) {
 
 Client *findclientll(Client *c, Window win) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("findclientll\n");
 #endif
   while (c) {
     if (c->win == win) {
@@ -940,7 +894,7 @@ Client *findclientll(Client *c, Window win) {
 
 int addtoll(Client **floating, Client *newc, Client *focused) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("addtoll\n");
 #endif
   if (!newc) {
     return FAIL;
@@ -975,7 +929,7 @@ int addtoll(Client **floating, Client *newc, Client *focused) {
 
 Client *removefromll(Window w, Bool warp) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("removefromll\n");
 #endif
   Client *c = NULL;
   Client *floating = NULL;
@@ -1042,7 +996,7 @@ Client *removefromll(Window w, Bool warp) {
 // bsp
 int looptree(Client *c, int (*func)(Client *)) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("looptree\n");
 #endif
   if (!c)
     return FAIL;
@@ -1058,7 +1012,7 @@ int looptree(Client *c, int (*func)(Client *)) {
 
 int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **)) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("gototree\n");
 #endif
 
   if (depth < 0) {
@@ -1085,7 +1039,7 @@ int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)
 
 Client *findclient(Client *c, Window win) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("findclient\n");
 #endif
   Client *retc = NULL;
   if (c->win == win) {
@@ -1101,7 +1055,7 @@ Client *findclient(Client *c, Window win) {
 
 int findclientpath(Client *c, Client **retc) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("findclientpath\n");
 #endif
   *retc = c;
   return SUC;
@@ -1109,7 +1063,7 @@ int findclientpath(Client *c, Client **retc) {
 
 int attachnode(Client *c, Client **newc) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("addtotree\n");
 #endif
   if (!c) {
     printerr("c is null\n");
@@ -1130,7 +1084,7 @@ int attachnode(Client *c, Client **newc) {
     c->b->p = c;
   } else {
     copyclient(c, *newc, True, True, True, False);
-    nwm_free(*newc);
+    free(*newc);
     c->p = NULL;
     *newc = c; // should prob do this because it's freeing memory that does NOT belong to this function
   }
@@ -1138,10 +1092,6 @@ int attachnode(Client *c, Client **newc) {
 }
 
 int addtotree(Client *headc, Client *newc, Client *focused) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
-
   if (focused) {
     newc->path = focused->path;
     newc->depth = focused->depth;
@@ -1167,7 +1117,7 @@ int addtotree(Client *headc, Client *newc, Client *focused) {
 
 Client *removefromtree(Window w, Bool warp) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("removefromtree\n");
 #endif
   // this function won't free the client, it just removes it from the tree and returns it
 
@@ -1201,6 +1151,9 @@ Client *removefromtree(Window w, Bool warp) {
     desktops[dt].focused = NULL;
     desktops[dt].active = 0;
 
+    // doesn't need to call setfocus because it just needs to delete this property
+    //XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+    //desktops[deski].tilefoc = NULL; // also needs to set this
     setfocus(desktops[dt].focused);
     return c; // caller should free this
   }
@@ -1224,16 +1177,11 @@ Client *removefromtree(Window w, Bool warp) {
     exitwm(NULL);
   }
 
-  Client *tofree = NULL;
   if (prevc->a == c) {
-    tofree = prevc->b;
     copyclient(prevc, prevc->b, True, True, False, True);
   } else {
-    tofree = prevc->a;
     copyclient(prevc, prevc->a, True, True, False, True);
   }
-
-  nwm_free(tofree);
 
   looptree(prevc, fixchildren);
 
@@ -1256,7 +1204,7 @@ Client *removefromtree(Window w, Bool warp) {
 
 int tilewins(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("tilewins\n");
   //printf("tilling tree %ld\n", deski);
 
   printf("tiling %lx\n", c->win);
@@ -1311,7 +1259,7 @@ int tilewins(Client *c) {
 // keypress
 int focuswindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("focuswindow\n");
 #endif
 
   Client *focused = desktops[deski].focused;
@@ -1334,7 +1282,7 @@ int focuswindow(Arg *arg) {
 
 int swapwindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("focuswindow\n");
 #endif
 
   Client *focused = desktops[deski].focused;
@@ -1363,7 +1311,7 @@ int swapwindow(Arg *arg) {
 
 int movewindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("movewindow\n");
 #endif
   Client *c = desktops[deski].focused;
   if (!c || !c->floating || c->win == root) {
@@ -1395,7 +1343,7 @@ int movewindow(Arg *arg) {
 
 int centerwindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("centerwindow\n");
 #endif
   (void)arg;
 
@@ -1416,7 +1364,7 @@ int centerwindow(Arg *arg) {
 
 int dragmovewindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("dragwindow\n");
 #endif
 
   if (arg->i == 0) {
@@ -1445,7 +1393,7 @@ int dragmovewindow(Arg *arg) {
 
 int dragresizewindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("dragwindow\n");
 #endif
 
   if (arg->i == 0) {
@@ -1480,7 +1428,7 @@ int dragresizewindow(Arg *arg) {
 
 int resizetiled(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("resizetiled\n");
 #endif
 
   // find what to resize
@@ -1561,7 +1509,7 @@ int resizetiled(Arg *arg) {
 
 int resizewindow(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("resizewindow\n");
 #endif
 
   Client *c = desktops[deski].focused;
@@ -1602,17 +1550,11 @@ int resizewindow(Arg *arg) {
 
 int focusdesktop(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-  printf("desktop = %d\n", arg->i);
+  printf("switching desktops...\n");
 #endif
 
   if (arg->i >= conf->num_of_desktops) {
     printerr("can't focus desktop (out of range)\n");
-    return FAIL;
-  }
-
-  if (arg->i == deski) {
-    printerr("focus on same desktop\n");
     return FAIL;
   }
 
@@ -1647,7 +1589,7 @@ int focusdesktop(Arg *arg) {
 
 int movedesktop(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("movedesktop\n");
 #endif
 
   if (arg->i >= conf->num_of_desktops)
@@ -1714,10 +1656,8 @@ int movedesktop(Arg *arg) {
 */
 int spawn(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
   printf("spawning: [%s]\n", arg->s[0]);
 #endif
-  //printf("\n#####\nspawn\n#####\n");
 
   struct sigaction sa;
 
@@ -1740,10 +1680,10 @@ int spawn(Arg *arg) {
 }
 
 int killfocused(Arg *arg) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   (void)arg;
+#ifdef NWM_DEBUG
+  printf("killfocused\n");
+#endif
   if (!desktops[deski].focused || desktops[deski].focused->win == root)
     return FAIL;
 
@@ -1763,7 +1703,7 @@ int killfocused(Arg *arg) {
 
 int floattoggle(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("floattoggle\n");
 #endif
   (void)arg;
 
@@ -1811,7 +1751,7 @@ int floattoggle(Arg *arg) {
 
 int focustoggle(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("focustoggle\n");
 #endif
 
   (void)arg;
@@ -1840,28 +1780,10 @@ int focustoggle(Arg *arg) {
 
 int exitwm(Arg *arg) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("exitwm\n");
 #endif
   XCloseDisplay(dpy);
   killserver();
-
-  nwm_free(wins);
-
-  if (conf->desktop_names)
-    nwm_free(conf->desktop_names);
-
-  clearconfigbinds();
-  nwm_free(conf);
-
-  for (int i = 0; i < conf->num_of_desktops; i++) {
-    nwm_free(desktops[i].headc);
-  }
-
-  nwm_free(desktops);
-
-#ifdef NWM_DEBUG
-  checkallocs();
-#endif
 
   if (arg)
     exit(arg->i);
@@ -1874,7 +1796,7 @@ int exitwm(Arg *arg) {
 // x11
 int sendevent(Client *c, Atom proto) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("sendevent\n");
 #endif
   int n;
   Atom *protocols;
@@ -1903,7 +1825,7 @@ int sendevent(Client *c, Atom proto) {
 
 void setfocus(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("setfocus\n");
 #endif
 
 
@@ -1940,7 +1862,7 @@ void setfocus(Client *c) {
 
 int updateborders(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("updateborders\n");
 #endif
   if (!c)
     return FAIL;
@@ -1956,7 +1878,7 @@ int updateborders(Client *c) {
 
 int mapwins(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("mapwins\n");
 #endif
   if (!c)
     return FAIL;
@@ -1977,7 +1899,7 @@ int mapwins(Client *c) {
 
 int unmapwins(Client *c) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("unmapwins\n");
 #endif
   XUnmapWindow(dpy, c->win);
   return SUC;
@@ -1986,9 +1908,6 @@ int unmapwins(Client *c) {
 
 // others
 int loadconfig(void) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   // get xdg_config_home
 
   int xdgmalloced = 0;
@@ -2006,14 +1925,9 @@ int loadconfig(void) {
     xdg_config_home = catstr(home, "/.config");
   }
 
-  // catstr doesn't free so have to keep this
-  char *freestr = xdg_config_home;
-
   // now add /nwm/nwm.conf to the end of xdg_config_home
-  xdg_config_home = catstr(xdg_config_home, "/nwm");
 
-  if (xdgmalloced)
-    nwm_free(freestr);
+  xdg_config_home = catstr(xdg_config_home, "/nwm");
 
   {
     struct stat st = {0};
@@ -2023,11 +1937,12 @@ int loadconfig(void) {
     }
   }
 
+
   char *configpath = catstr(xdg_config_home, "/nwm.conf");
   char *startuppath = catstr(xdg_config_home, "/startup");
 
   if (xdgmalloced)
-    nwm_free(xdg_config_home);
+    free(xdg_config_home);
 
   printf("configpath = [%s]\n", configpath);
   printf("startuppath = [%s]\n", startuppath);
@@ -2038,11 +1953,11 @@ int loadconfig(void) {
 
   // startup
   if (access(startuppath, F_OK) == 0) {
-    arg = nwm_malloc(sizeof(char *) * 2);
+    arg = malloc(sizeof(char *) * 2);
     arg[0] = startuppath;
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    nwm_free(arg);
+    free(arg);
   } else {
     printerr("startup file does not exist please create a startup file\n");
     ret = 1;
@@ -2050,25 +1965,22 @@ int loadconfig(void) {
 
   // config
   if (access(configpath, F_OK) == 0) {
-    arg = nwm_malloc(sizeof(char *) * 2);
+    arg = malloc(sizeof(char *) * 2);
     arg[0] = configpath;
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    nwm_free(arg);
+    free(arg);
   } else {
     printerr("config file does not exist please create a config file\n");
     ret = 1;
   }
-
-  nwm_free(startuppath);
-  nwm_free(configpath);
 
   return ret;
 }
 
 void setup(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("setup\n");
 #endif
   int screen = DefaultScreen(dpy);
   root = RootWindow(dpy, screen);
@@ -2098,7 +2010,7 @@ void setup(void) {
   handler[FocusIn] = focusin;
   handler[ClientMessage] = clientmessage;
 
-  conf = nwm_malloc(sizeof(Config));
+  conf = malloc(sizeof(Config));
   /**conf = (Config){
     .vgaps = 20,
     .hgaps = 20,
@@ -2132,19 +2044,13 @@ void setup(void) {
   };
   conf->keys = NULL;
 
-  conf->keys = nwm_malloc(sizeof(Key) * conf->keyslen);
-
-  char *st = nwm_malloc(sizeof(char) * 3);
-  st[0] = 's';
-  st[1] = 't';
-  st[2] = '\0';
+  conf->keys = malloc(sizeof(Key) * conf->keyslen);
 
   char **arg;
-  arg = nwm_malloc(sizeof(char *) * 2);
-  arg[0] = st;
+  arg = malloc(sizeof(char *) * 2);
+  arg[0] = "st";
   arg[1] = NULL;
   conf->keys[0] = (Key){Mod1Mask, XK_Return, spawn, {.s = arg}, False};
-
 
   conf->keys[1] = (Key){Mod1Mask|ShiftMask, XStringToKeysym("q"), exitwm, {.i = 0}, False};
   conf->keys[2] = (Key){Mod1Mask, XStringToKeysym("q"), killfocused, {.i = 0}, False};
@@ -2157,7 +2063,7 @@ void setup(void) {
 
   old_num_of_desktops = conf->num_of_desktops;
 
-  desktops = nwm_malloc(sizeof(Desktop) * conf->num_of_desktops);
+  desktops = malloc(conf->num_of_desktops * sizeof(Desktop));
   deski = 0;
 
   for (int i = 0; i < conf->num_of_desktops; i++) {
@@ -2168,9 +2074,8 @@ void setup(void) {
     desktops[i].active = 0;
   }
 
-  //conf->desktop_names = "a\0""b\0""c\0""d\0";
-  conf->desktop_names = NULL;
-  conf->desktop_names_len = 0;
+  conf->desktop_names = "a\0""b\0""c\0""d\0";
+  conf->desktop_names_len = 8;
   // you can't just do sizeof or strlen on the workspace names string
 
   // grab keys
@@ -2184,23 +2089,23 @@ void setup(void) {
   if (loadconfig() != 0) {
     printerr("failed to load config loading from repo path\n");
 
-    arg = nwm_malloc(sizeof(char *) * 2);
+    arg = malloc(sizeof(char *) * 2);
     arg[0] = "/home/ethan/neowm/nwm.conf";
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    nwm_free(arg);
+    free(arg);
 
-    arg = nwm_malloc(sizeof(char *) * 2);
+    arg = malloc(sizeof(char *) * 2);
     arg[0] = "/home/ethan/neowm/startup";
     arg[1] = NULL;
     spawn(&(Arg){.s = arg});
-    nwm_free(arg);
+    free(arg);
   }
 }
 
 void setupatoms(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("setupatoms\n");
 #endif
   utf8string = XInternAtom(dpy, "UTF8_STRING", False);
 
@@ -2250,7 +2155,7 @@ void setupatoms(void) {
 
 int xerror(Display *dpy, XErrorEvent *ee) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("xerror\n");
 #endif
   // from dwm
   switch (ee->error_code) {
@@ -2264,20 +2169,20 @@ int xerror(Display *dpy, XErrorEvent *ee) {
 }
 
 int xerrordummy(Display *dpy, XErrorEvent *ee) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   (void)dpy;
   (void)ee;
+#ifdef NWM_DEBUG
+  printf("xerrordummy\n");
+#endif
   return 0;
 }
 
 int xerrorstart(Display *dpy, XErrorEvent *ee) {
-#ifdef NWM_DEBUG
-  printf("%s\n", __func__);
-#endif
   (void)dpy;
   (void)ee;
+#ifdef NWM_DEBUG
+  printf("xerrorstart\n");
+#endif
   printerr("another window manager is running\n");
 
   // can't use exitwm because it tries to close the display
@@ -2286,7 +2191,7 @@ int xerrorstart(Display *dpy, XErrorEvent *ee) {
 
 void checkotherwm(void) {
 #ifdef NWM_DEBUG
-  printf("%s\n", __func__);
+  printf("checkotherwm\n");
 #endif
   xerrorxlib = XSetErrorHandler(xerrorstart);
   // do something that will cause an error if a wm is running

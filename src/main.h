@@ -28,7 +28,7 @@
 #define FAIL 0
 #define SUC 1
 
-//#define NWM_DEBUG
+#define NWM_DEBUG
 
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; // wmatom
 enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
@@ -118,6 +118,8 @@ int ungrabbuttons(Client *c);
 void setdesktops(void);
 void warptowin(Client *c);
 void checkwinsize(Client *c);
+void clearstringargs(Key *keys, int len);
+void clearconfigbinds();
 
 // events
 void voidevent(XEvent *);

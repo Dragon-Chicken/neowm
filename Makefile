@@ -1,4 +1,4 @@
-FLAGS=-O3 -Wall -Wextra
+FLAGS=-O3 -Wall -Wextra -Wpedantic
 PREFIX = /usr/local
 
 .PHONY: nwm nwmc dir
