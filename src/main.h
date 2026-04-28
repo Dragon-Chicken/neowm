@@ -34,7 +34,7 @@ enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; // wmatom
 enum { NetSupported, NetWMName, NetActiveWindow, NetWMCheck,
   NetWMStrutPartial,
   NetWMWindowType, NetWMWindowTypeNormal, NetWMWindowTypeDock, NetWMWindowTypePopup,
-  NetWMState, NetWMStateAbove,
+  NetWMState, NetWMStateAdd, NetWMStateRemove, NetWMStateToggle, NetWMStateAbove, NetWMStateFullscreen,
   NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetDesktopNames, NetClientList,
   NetLast }; // netatom
 
@@ -44,7 +44,6 @@ typedef struct Client {
   struct Client *a;
   struct Client *b;
   struct Client *p;
-  //struct Client *last; // find out what this was for...
   Window win;
   unsigned int path;
   int depth;
@@ -66,6 +65,7 @@ typedef struct Desktop {
 typedef union Arg {
   int i;
   char **s;
+  Client *c;
 } Arg;
 
 typedef struct Key {
@@ -109,7 +109,7 @@ void printll(Client *c);
 // helpers
 void printerr(char *errstr);
 char *catstr(char *a, char *b);
-int getwinprop(Client *c, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
+int getwinprop(Window win, Atom prop, unsigned long *retatom, unsigned long retatomlen, Atom proptype);
 void remapwins(void);
 void bindkeys(void);
 void unbindkeys(void);
@@ -143,25 +143,15 @@ long getsizehints(Client *newc);
 int fixchildren(Client *c);
 int addtoclientlist(Client *c, Window *wins, int numofwins);
 void createclientlist(void);
-int shouldmanage(Client *c);
-void manage(Window w);
-void unmanage(Window w);
+int shouldmanage(Window win);
+void manage(Window win);
+void unmanage(Window win);
 
 // linked list
 int loopll(Client *c, int (*func)(Client *));
 Client *findclientll(Client *c, Window win);
 int addtoll(Client **floating, Client *newc, Client *c);
-Client *removefromll(Window w, Bool warp);
-
-// bsp
-int looptree(Client *c, int (*func)(Client *));
-int gototree(Client *c, Client **retc, unsigned int path, int depth, int (*func)(Client *, Client **));
-Client *findclient(Client *c, Window win);
-int findclientpath(Client *c, Client **retc);
-int addtotree(Client *headc, Client *newc, Client *focused);
-int attachnode(Client *c, Client **newc);
-Client *removefromtree(Window w, Bool warp);
-int tilewins(Client *c);
+Client *removefromll(Window win, Bool warp);
 
 // keypress
 int focuswindow(Arg *arg);
@@ -181,7 +171,7 @@ int focustoggle(Arg *arg);
 int exitwm(Arg *arg);
 
 // x11
-int sendevent(Client *c, Atom proto);
+int sendevent(Window win, Atom proto);
 void setfocus(Client *c);
 int updateborders(Client *c);
 int mapwins(Client *c);

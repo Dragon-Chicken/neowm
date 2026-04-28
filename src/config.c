@@ -40,6 +40,9 @@ int s, s2;
 pthread_t server_thread = 0;
 extern Config *conf;
 
+int maxsize = 50; // this is not a limit, just starting size of str
+char *str = NULL;
+
 void sendret(int s, int *done, char ret) {
   char str[2] = {ret, '\0'};
   if (done == NULL) {
@@ -67,10 +70,19 @@ int getsize(int s, int *done) {
   return (str[0] & 0x7f) | ((str[1] & 0x7f) << 7);
 }
 
-int getdata(int s, int *done, int strlen, char **cmd) {
-  char *str = nwm_malloc(sizeof(char) * strlen);
+int getdata(int s, int *done, int size, int *maxsize, char **cmd) {
+  char *str;
+  if (size > *maxsize) {
+    *maxsize = size;
+    if (*cmd) {
+      nwm_free(*cmd);
+    }
+    str = nwm_malloc(sizeof(char) * size);
+  } else {
+    str = *cmd;
+  }
   int n;
-  if ((n = recv(s, str, strlen, 0)) <= 0) {
+  if ((n = recv(s, str, size, 0)) <= 0) {
     if (n < 0)
       perror("recv");
     *done = 1;
@@ -119,7 +131,9 @@ void parse(Token *token, char *str, Key *key, int *keystate) {
     if (conf->desktop_names)
       nwm_free(conf->desktop_names);
 
-    conf->desktop_names = nwm_malloc(sizeof(char) * len);
+    if (len > conf->desktop_names_len) {
+      conf->desktop_names = nwm_malloc(sizeof(char) * len);
+    }
     memcpy(conf->desktop_names, str, len);
     char *sptr = strtok(conf->desktop_names, " \t\n\r");
     while (sptr) {
@@ -171,6 +185,11 @@ void parse(Token *token, char *str, Key *key, int *keystate) {
   if (*token != tok_bind) { // doing to remove indents...
     remapwins();
     return;
+  }
+
+  // make lowercase
+  for (int i = 0; str[i]; i++) {
+    str[i] = tolower(str[i]);
   }
 
   if (*keystate == 0) {
@@ -334,13 +353,16 @@ void parse(Token *token, char *str, Key *key, int *keystate) {
 }
 
 int handleconnection(void) {
-  char *str = NULL;
-
   Token token = tok_none;
 
   Bool issize = True;
-  int size = 0;
   int ret = 1; // 0 == ok, 1 == error, 2 == resend data
+
+  int size = 0;
+
+  // this isn't really needed.... BUT it can help with the amount of mallocs...
+  /*int maxsize = 0;
+  char *str = NULL;*/
 
   Key key = {0};
   int keystate = 0;
@@ -351,13 +373,14 @@ int handleconnection(void) {
     // first client sends size of message
     // then sends the message
     if (issize) {
+      //maxsize = size;
       size = getsize(s2, &done) + 1;
       if (size == 1)
         done = 1;
       issize = False;
 
     } else {
-      int datasize = getdata(s2, &done, size, &str);
+      int datasize = getdata(s2, &done, size, &maxsize, &str);
 #ifdef NWM_DEBUG
       printf("nwmc command:[%s]\n", str);
 #endif
@@ -374,8 +397,8 @@ int handleconnection(void) {
       sendret(s2, &done, 1);
       issize = True;
 
-      nwm_free(str);
-      str = NULL;
+      //nwm_free(str);
+      //str = NULL;
     }
   } while (!done);
 
@@ -429,6 +452,7 @@ int startserver(void) {
 #ifdef NWM_DEBUG
   printf("startserver\n");
 #endif
+  str = nwm_malloc(sizeof(char) * maxsize);
   pthread_create(&server_thread, NULL, serverthread, NULL);
   close(s2);
   close(s);
@@ -444,5 +468,6 @@ int killserver(void) {
   }
   pthread_cancel(server_thread);
   pthread_join(server_thread, NULL);
+  nwm_free(str);
   return 0;
 }
